@@ -23,6 +23,8 @@ from pyrogram.types.messages_and_media import message
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from style import Ashu 
 
+from core import handle_direct_link, process_with_ffmpeg, send_vid, is_direct_media_url, download_video
+
 # Initialize the bot
 bot = Client(
     "bot",
