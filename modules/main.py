@@ -7,6 +7,7 @@ import logging
 import subprocess
 import concurrent.futures
 import re
+import aiofiles
 import sys
 from urllib.parse import urlparse
 from pathlib import Path
