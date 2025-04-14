@@ -23,7 +23,7 @@ from pyrogram.types.messages_and_media import message
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from style import Ashu 
 
-from handler import (
+from handlers import (
     direct_link_command,
     auto_direct_link_handler,
     process_media_command,
