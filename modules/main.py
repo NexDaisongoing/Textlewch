@@ -25,6 +25,7 @@ from utlis.download import (
     download_video, 
     is_direct_media_url, 
     get_filename_from_url
+    download_with_aria2c
 )
 from utlis.process import process_with_ffmpeg, get_duration, generate_thumbnail
 from utlis.upload import send_doc, send_vid
