@@ -14,7 +14,7 @@ from utlis.bar import download_progress_bar
 
 # Setting up logging
 
-logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(message)s')
+logging.basicConfig(level=logging.WARNING, format='%(asctime)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 def get_file_extension(url):
