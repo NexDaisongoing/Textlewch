@@ -96,3 +96,63 @@ async def progress_bar(current, total, reply, start):
             except FloodWait as e:
                 time.sleep(e.x)
 
+def progress_bar(current, total, message, start_time):
+    """
+    Display a progress bar for uploads/downloads in Telegram
+    
+    Args:
+        current (int): Current progress
+        total (int): Total size
+        message (Message): Message object to edit
+        start_time (float): Time when the operation started
+    """
+    if total == 0:
+        return
+    
+    now = time.time()
+    elapsed_time = now - start_time
+    
+    if elapsed_time == 0:
+        return
+    
+    speed = current / elapsed_time
+    percent = current * 100 / total
+    eta = round((total - current) / speed) if speed > 0 else 0
+    
+    # Format time
+    def format_time(seconds):
+        hours = seconds // 3600
+        seconds %= 3600
+        minutes = seconds // 60
+        seconds %= 60
+        return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+    
+    # Format size
+    def sizeof_fmt(num, suffix='B'):
+        for unit in ['', 'K', 'M', 'G', 'T', 'P', 'E', 'Z']:
+            if abs(num) < 1024.0:
+                return f"{num:.2f}{unit}{suffix}"
+            num /= 1024.0
+        return f"{num:.2f}Yi{suffix}"
+    
+    # Create progress bar
+    progress_length = 20
+    completed_length = int(round(progress_length * current / float(total)))
+    remaining_length = progress_length - completed_length
+    progress_bar = '█' * completed_length + '░' * remaining_length
+    
+    # Create status text
+    status = (
+        f"**Progress**: {current}/{total} ({percent:.2f}%)\n"
+        f"**Speed**: {sizeof_fmt(speed)}/s\n"
+        f"**ETA**: {format_time(eta)}\n"
+        f"**Elapsed**: {format_time(int(elapsed_time))}\n"
+        f"[{progress_bar}]"
+    )
+    
+    # Edit message with new status
+    try:
+        message.edit(status)
+    except Exception as e:
+        print(f"Error updating progress: {e}")
+
