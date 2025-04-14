@@ -23,3 +23,11 @@ Eg » `https://graph.org/file/698599feb76711fa080f6.jpg`
 ᴛᴏ ɢᴇɴᴇʀᴀᴛᴇ ᴛʜᴜᴍʙɴᴀɪʟ ᴜʀʟ ᴜsᴇ ᴛʜɪs ʙᴏᴛ -  @FileToUrlX_Bot 
 ➤ sᴇɴᴅ ɪᴍɢᴀᴇ ɪɴ ʙᴏᴛ
 ➤ Reply `/telegraph`</b>"""
+    
+    FFMPEG_TEXT = """❏ ᴇɴᴛᴇʀ ʏᴏᴜʀ ᴄᴜsᴛᴏᴍ ғғᴍᴘᴇɢ ᴄᴏᴍᴍᴀɴᴅ, ᴏʀ ᴛʏᴘᴇ 'skip':
+
+❐ ᴇxᴀᴍᴘʟᴇs:
+➤ ffmpeg -c:v libx264 -crf 23
+➤ ffmpeg -vf scale=1280:720 -c:v libx264 -crf 23 -c:a copy
+➤ ffmpeg -vf "scale=1280:720, eq=brightness=0.1:contrast=1.2" -c:v libx264 -c:a copy
+➤ skip"""
