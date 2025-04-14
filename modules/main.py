@@ -23,12 +23,7 @@ from pyrogram.types.messages_and_media import message
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from style import Ashu 
 
-from handlers import (
-    direct_link_command,
-    auto_direct_link_handler,
-    process_media_command,
-    show_ffmpeg_presets
-)
+from handlers import register_handlers
 
 # Initialize the bot
 bot = Client(
@@ -37,6 +32,8 @@ bot = Client(
     api_hash=API_HASH,
     bot_token=BOT_TOKEN
 )
+
+register_handlers(bot)
 
 # Define aiohttp routes
 routes = web.RouteTableDef()
