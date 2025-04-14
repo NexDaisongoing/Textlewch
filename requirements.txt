@@ -22,3 +22,4 @@ pytz
 umongo
 speedtest-cli
 gpuinfo
+aria2c
