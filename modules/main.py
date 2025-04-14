@@ -24,7 +24,7 @@ from utlis.download import (
     aio_download, 
     download_video, 
     is_direct_media_url, 
-    get_filename_from_url
+    get_filename_from_url,
     download_with_aria2c
 )
 from utlis.process import process_with_ffmpeg, get_duration, generate_thumbnail
