@@ -10,7 +10,7 @@ from core import (
 )
 from path_finder import register_ffmpeg_path_handler
 from sysinfo import register_system_info_handler
-from get_log import register_logs_commands(
+from get_log import register_logs_commands
 from ffmpeg_logs import register_ffmpeg_logs_command
 
 # Define a filter for direct video links
