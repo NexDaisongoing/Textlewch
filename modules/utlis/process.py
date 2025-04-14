@@ -6,7 +6,7 @@ import asyncio
 import logging
 from pathlib import Path
 
-from bar import ffmpeg_progress_bar
+from utlis.bar import ffmpeg_progress_bar
 
 logger = logging.getLogger(__name__)
 
