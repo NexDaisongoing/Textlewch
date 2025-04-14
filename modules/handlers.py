@@ -8,6 +8,7 @@ from core import (
     is_direct_media_url,
     download_video
 )
+from ffmpeg_path_handler import register_ffmpeg_path_handler
 
 # Define a filter for direct video links
 direct_video_pattern = re.compile(
