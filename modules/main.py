@@ -175,7 +175,7 @@ async def leech_command(client, message: Message):
         await reply.edit(f"Downloading:\n`{filename}`")  # Update the progress message with filename.
 
         # Step 2: Download the file with progress
-        await download_with_progress(url, filename, reply)  # The progress of download is reflected in the Progress Message.
+        await download_with_aria2c(url, filename, reply)  # The progress of download is reflected in the Progress Message.
 
         # Step 3: Process with FFmpeg (using custom_ffmpeg if provided)
         if custom_ffmpeg:
