@@ -11,6 +11,7 @@ from core import (
 from path_finder import register_ffmpeg_path_handler
 from sysinfo import register_system_info_handler
 from get_log import register_logs_commands(
+from ffmpeg_logs import register_ffmpeg_logs_command
 
 # Define a filter for direct video links
 direct_video_pattern = re.compile(
@@ -147,3 +148,4 @@ def register_handlers(bot: Client):
     register_ffmpeg_path_handler(bot)  # Register the /path command here
     register_system_info_handler(bot)
     register_logs_commands(bot)
+    register_ffmpeg_logs_command(bot)
