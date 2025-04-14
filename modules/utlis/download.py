@@ -185,3 +185,83 @@ async def aio_download(url, name, extension=".pdf"):
     except Exception as e:
         logger.error(f"Error during aio download: {e}")
         return None
+
+# If convert_to_bytes isn’t defined in bar.py (or helpers.py), include it here:
+def convert_to_bytes(value, unit):
+    """Convert a value with a given unit (e.g., 'MiB', 'GiB') to bytes."""
+    unit = unit.lower()
+    if unit == 'kib':
+        return value * 1024
+    elif unit == 'mib':
+        return value * 1024**2
+    elif unit == 'gib':
+        return value * 1024**3
+    # Fallback for unknown units: assume bytes.
+    return value
+
+async def monitor_aria2c_progress(process, message: Message, start_time):
+    """
+    Monitor aria2c output, parse progress information, and update the progress bar.
+
+    Adjust the regex below according to your aria2c output format.
+    Expected format example: "12.34MiB/123.45MiB" 
+    """
+    size_pattern = re.compile(r"(\d+\.\d+)([KMG]iB)/(\d+\.\d+)([KMG]iB)")
+
+    while True:
+        line = await process.stdout.readline()
+        if not line:
+            break  # End-of-stream reached
+        
+        line = line.decode("utf-8").strip()
+        logger.debug(f"aria2c output: {line}")
+
+        match = size_pattern.search(line)
+        if match:
+            current_val, current_unit, total_val, total_unit = match.groups()
+            try:
+                current_bytes = convert_to_bytes(float(current_val), current_unit)
+                total_bytes = convert_to_bytes(float(total_val), total_unit)
+                await download_progress_bar(current_bytes, total_bytes, message, start_time)
+            except Exception as e:
+                logger.error(f"Error parsing aria2c output: {e}")
+
+        await asyncio.sleep(0.5)  # Adjust sleep duration as needed
+
+async def download_with_aria2c(url: str, filename: str, message: Message):
+    """
+    Download a file with aria2c while updating progress.
+
+    `message` must implement an async edit() method (as with Pyrogram's Message).
+    """
+    start_time = time.time()
+    download_cmd = (
+        f"aria2c -x 16 -s 16 -k 1M --max-connection-per-server=16 "
+        f"--retry-wait=5 --max-tries=5 --split=16 --out={filename} {url}"
+    )
+    logger.info(f"Starting download with command: {download_cmd}")
+
+    process = await asyncio.create_subprocess_shell(
+        download_cmd,
+        stdout=PIPE,
+        stderr=asyncio.subprocess.STDOUT  # Merge stderr into stdout for easier monitoring
+    )
+
+    # Run the progress monitor concurrently.
+    monitor_task = asyncio.create_task(monitor_aria2c_progress(process, message, start_time))
+
+    # Wait for aria2c to finish downloading.
+    await process.wait()
+    await monitor_task  # Ensure the monitor finishes.
+
+    # Check if download was successful by verifying file existence.
+    if os.path.exists(filename):
+        logger.info(f"Download successful: {filename}")
+        return filename
+    else:
+        logger.error("Download failed: File not found after download")
+        try:
+            await message.edit("❌ Download failed.")
+        except Exception as e:
+            logger.error(f"Failed to update message on error: {e}")
+        return None
