@@ -33,6 +33,9 @@ bot = Client(
     bot_token=BOT_TOKEN
 )
 
+# Define a filter for direct video links
+direct_video_pattern = re.compile(r'https?://.*\.(mp4|mkv|avi|mov|webm|flv|3gp|wmv|m4v)(\?.*)?$', re.IGNORECASE)
+
 # Define aiohttp routes
 routes = web.RouteTableDef()
 
@@ -233,6 +236,146 @@ async def account_login(bot: Client, m: Message):
     except Exception as e:
         await m.reply_text(e)
     await m.reply_text("✅ 𝐒𝐮𝐜𝐜𝐞𝐬𝐬𝐟𝐮𝐥𝐥𝐲 𝐃𝐨𝐧𝐞")
+
+# Command handler for direct media links
+@Client.on_message(filters.command("direct") & filters.text)
+async def direct_link_command(client, message: Message):
+    """Download and process a direct media link"""
+    # Check if the message contains a URL
+    url = None
+    if len(message.command) > 1:
+        url = message.command[1]
+    elif message.reply_to_message and message.reply_to_message.text:
+        # Try to extract URL from the replied message
+        urls = re.findall(r'(https?://[^\s]+)', message.reply_to_message.text)
+        if urls:
+            url = urls[0]
+    
+    if not url:
+        await message.reply_text("❌ Please provide a direct media URL or reply to a message containing a URL.")
+        return
+    
+    # Extract FFmpeg parameters if provided
+    custom_ffmpeg = None
+    ffmpeg_match = re.search(r'ffmpeg:(.+?)(?:\s|$)', message.text)
+    if ffmpeg_match:
+        custom_ffmpeg = ffmpeg_match.group(1).strip()
+    
+    # Extract custom filename if provided
+    custom_filename = None
+    filename_match = re.search(r'filename:(.+?)(?:\s|$)', message.text)
+    if filename_match:
+        custom_filename = filename_match.group(1).strip()
+    
+    # Handle the direct link
+    await handle_direct_link(message, url, custom_filename, custom_ffmpeg)
+
+
+# Auto-detect direct media links in messages
+@Client.on_message(filters.regex(direct_video_pattern) & ~filters.command)
+async def auto_direct_link_handler(client, message: Message):
+    """Automatic handling of direct media links in messages"""
+    urls = re.findall(r'(https?://[^\s]+\.(mp4|mkv|avi|mov|webm|flv|3gp|wmv|m4v)(\?.*)?)', message.text, re.IGNORECASE)
+    
+    if not urls:
+        return
+    
+    # Extract the first URL found
+    url = urls[0][0]
+    
+    # Ask user if they want to download the media
+    confirm_msg = await message.reply_text(
+        f"📽️ Direct media link detected: `{url}`\n\n"
+        f"**Would you like to:**\n"
+        f"- `!download` - Download and upload to Telegram\n"
+        f"- `!process` - Download, process with FFmpeg, and upload\n"
+        f"- `!cancel` - Ignore this link"
+    )
+    
+    # Wait for user response
+    @Client.on_message(filters.reply & filters.text & filters.user(message.from_user.id), group=123)
+    async def wait_for_response(client, response):
+        if response.reply_to_message.id != confirm_msg.id:
+            return
+        
+        # Remove the handler
+        client.remove_handler(wait_for_response, group=123)
+        
+        command = response.text.lower().strip()
+        
+        if command == "!download":
+            await handle_direct_link(message, url)
+        elif command == "!process":
+            # Ask for FFmpeg parameters
+            ffmpeg_msg = await message.reply_text(
+                "Please provide FFmpeg parameters.\n\n"
+                "Example: `-c:v libx264 -preset medium -crf 23 -c:a aac -b:a 128k`\n\n"
+                "Or type `!default` for standard processing, or `!cancel` to cancel."
+            )
+            
+            @Client.on_message(filters.reply & filters.text & filters.user(message.from_user.id), group=124)
+            async def wait_for_ffmpeg(client, ffmpeg_response):
+                if ffmpeg_response.reply_to_message.id != ffmpeg_msg.id:
+                    return
+                
+                # Remove the handler
+                client.remove_handler(wait_for_ffmpeg, group=124)
+                
+                ffmpeg_params = ffmpeg_response.text.strip()
+                
+                if ffmpeg_params.lower() == "!cancel":
+                    await ffmpeg_msg.edit("Operation cancelled.")
+                    return
+                elif ffmpeg_params.lower() == "!default":
+                    ffmpeg_params = "-c:v libx264 -preset medium -crf 23 -c:a aac -b:a 128k"
+                
+                await handle_direct_link(message, url, None, ffmpeg_params)
+            
+        elif command == "!cancel":
+            await confirm_msg.edit("❌ Operation cancelled.")
+        else:
+            await confirm_msg.edit("❌ Invalid command. Operation cancelled.")
+
+
+# Example command for downloading with custom FFmpeg processing
+@Client.on_message(filters.command("process") & filters.text)
+async def process_media_command(client, message: Message):
+    """Process a media file with custom FFmpeg parameters"""
+    # Check if the message contains necessary parameters
+    if len(message.command) < 3:
+        await message.reply_text(
+            "❌ Please provide both URL and FFmpeg parameters.\n\n"
+            "Usage: `/process URL \"FFmpeg parameters\"`\n\n"
+            "Example: `/process https://example.com/video.mp4 \"-c:v libx264 -crf 23\"`"
+        )
+        return
+    
+    url = message.command[1]
+    ffmpeg_params = ' '.join(message.command[2:])
+    
+    # Handle the media processing
+    await handle_direct_link(message, url, None, ffmpeg_params)
+
+
+# Command to show FFmpeg presets
+@Client.on_message(filters.command("ffmpeg_presets"))
+async def show_ffmpeg_presets(client, message: Message):
+    """Show available FFmpeg presets"""
+    presets = {
+        "compress": "-c:v libx264 -preset slow -crf 28 -c:a aac -b:a 96k",
+        "hevc": "-c:v libx265 -preset medium -crf 28 -c:a aac -b:a 128k",
+        "fastcompress": "-c:v libx264 -preset ultrafast -crf 28 -c:a aac -b:a 96k",
+        "hd": "-c:v libx264 -preset slow -crf 18 -c:a aac -b:a 192k",
+        "gif": "-vf \"fps=10,scale=320:-1:flags=lanczos\" -c:v gif",
+        "remux": "-c copy",
+        "normalize_audio": "-c:v copy -c:a aac -af \"loudnorm=I=-16:LRA=11:TP=-1.5\" -b:a 192k"
+    }
+    
+    preset_text = "**📋 Available FFmpeg Presets:**\n\n"
+    for name, params in presets.items():
+        preset_text += f"• **{name}**: `/process URL \"{params}\"`\n\n"
+    
+    await message.reply_text(preset_text)
 
 async def main():
     if WEBHOOK:
