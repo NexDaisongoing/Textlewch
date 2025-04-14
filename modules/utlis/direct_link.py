@@ -2,9 +2,9 @@ import os
 import logging
 from pyrogram.types import Message
 
-from download import download_with_progress, get_filename_from_url
-from process import process_with_ffmpeg
-from upload import send_vid
+from utlis.download import download_with_progress, get_filename_from_url
+from utlis.process import process_with_ffmpeg
+from utlis.upload import send_vid
 
 logger = logging.getLogger(__name__)
 
