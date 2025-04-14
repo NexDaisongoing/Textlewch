@@ -156,3 +156,18 @@ def progress_bar(current, total, message, start_time):
     except Exception as e:
         print(f"Error updating progress: {e}")
 
+# utils.py
+
+def generate_progress_bar(current_mb, total_mb, speed_kbps, elapsed, eta):
+    percent = (current_mb / total_mb) * 100
+    filled_length = int(percent // 5)  # 20 segments total
+    bar = '█' * filled_length + '░' * (20 - filled_length)
+
+    return (
+        f"Progress: {current_mb:.2f}/{total_mb:.2f} MB ({percent:.2f}%)\n"
+        f"Speed: {speed_kbps:.2f}KB/s\n"
+        f"ETA: {eta}\n"
+        f"Elapsed: {elapsed}\n"
+        f"[{bar}]"
+    )
+
