@@ -4,8 +4,8 @@ import logging
 from pyrogram import Client
 from pyrogram.types import Message
 
-from bar import upload_progress_bar
-from process import get_duration, generate_thumbnail
+from utlis.bar import upload_progress_bar
+from utlis.process import get_duration, generate_thumbnail
 
 logger = logging.getLogger(__name__)
 
