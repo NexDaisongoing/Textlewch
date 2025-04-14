@@ -69,74 +69,56 @@ def is_direct_media_url(url):
 
 
 async def download_with_progress(url, filename, message):
-    """Download a file with progress updates using aria2c in Google Colab"""
+    """Download a file using aria2c with progress updates"""
     start_time = time.time()
+    temp_filename = f"{filename}.download"
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
 
-    # Optimized aria2c command with parallel connections and chunking
-    download_cmd = f'aria2c -x 16 -s 16 -k 1M --max-connection-per-server=16 --retry-wait=5 --max-tries=5 --split=16 --out={filename} {url}'
+    # Define aria2c command for multi-connection download
+    aria2c_cmd = [
+        "aria2c",
+        "--max-connection-per-server=16",   # 16 connections per server
+        "--split=16",                        # Split the file into 16 parts
+        "--continue=true",                   # Continue downloading if interrupted
+        "--show-files=true",                 # Show file download progress
+        "--dir", os.path.dirname(filename),  # Save to specified directory
+        "--out", os.path.basename(filename), # Output filename
+        url
+    ]
 
     try:
-        # Start the aria2c download process
-        process = subprocess.Popen(
-            download_cmd, 
-            shell=True, 
-            stdout=subprocess.PIPE, 
-            stderr=subprocess.PIPE
-        )
+        # Execute aria2c command for download
+        process = subprocess.Popen(aria2c_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-        logger.info(f"Started download with command: {download_cmd}")
+        # Capture output from aria2c for progress tracking
+        progress_message = await message.edit("⬇️ Starting download with aria2c...")
 
         while True:
-            output = process.stdout.readline().decode('utf-8')
-            error_output = process.stderr.readline().decode('utf-8')
-
-            if output == '' and error_output == '' and process.poll() is not None:
-                logger.info("Download completed")
+            output = process.stdout.readline()
+            if output == b"" and process.poll() is not None:
                 break
-
             if output:
-                # Log download progress
-                logger.debug(f"aria2c output: {output}")
+                output = output.decode("utf-8").strip()
+                # Log or display output to track progress
+                if "progress" in output:
+                    # Assuming output contains a percentage progress
+                    match = re.search(r'(\d+)%', output)
+                    if match:
+                        percent = match.group(1)
+                        await download_progress_bar(int(percent), 100, progress_message, start_time)
 
-            if error_output:
-                # Capture and log errors from aria2c
-                logger.error(f"aria2c error: {error_output}")
-
-        # Check if the download was successful and rename the file
+        # Check if file is downloaded successfully
         if os.path.exists(filename):
-            logger.info(f"Download successful: {filename}")
             return filename
         else:
-            logger.error("Download failed: File not found after download")
-            await message.edit("❌ Download failed.")
+            logger.error(f"Download failed: {filename} not found.")
+            await message.edit(f"❌ Download failed: {filename} not found.")
             return None
 
     except Exception as e:
-        logger.error(f"Error during download: {e}")
+        logger.error(f"Download error: {e}")
         await message.edit(f"❌ Download failed: {str(e)}")
         return None
-
-async def aio_download(url, name, extension=".pdf"):
-    """Download a file asynchronously using aiohttp"""
-    filename = f'{name}{extension}'
-    logger.info(f"Starting asynchronous download: {filename}")
-
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url) as resp:
-                if resp.status == 200:
-                    f = await aiofiles.open(filename, mode='wb')
-                    await f.write(await resp.read())
-                    await f.close()
-                    logger.info(f"Download completed: {filename}")
-                    return filename
-                else:
-                    logger.error(f"Download failed with status code {resp.status}")
-                    return None
-    except Exception as e:
-        logger.error(f"Error during aio download: {e}")
-        return None
-
 
 async def download_video(url, cmd, name):
     """Download video using yt-dlp or similar tool with retry mechanism"""
