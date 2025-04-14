@@ -8,6 +8,8 @@ from pathlib import Path
 
 from utlis.bar import ffmpeg_progress_bar
 
+
+logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 def get_duration(filename):
