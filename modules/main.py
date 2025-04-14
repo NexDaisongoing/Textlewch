@@ -152,6 +152,40 @@ async def upload_command(client, message: Message):
 
     await editable.edit("All URLs processed successfully!")
 
+@bot.on_message(filters.command("leech") & filters.regex(r'https?://'))
+async def leech_command(client, message: Message):
+    """Handle the /leech command to download, process, and upload media."""
+    url = re.search(r'(https?://\S+)', message.text).group(1)
+    reply = await message.reply_text("Fetching file...")
+
+    try:
+        # Step 1: Get filename
+        filename = get_filename_from_url(url)
+        await reply.edit(f"Downloading:\n`{filename}`")
+
+        # Step 2: Download with progress
+        await download_with_progress(url, filename, reply)
+
+        # Step 3: Process with FFmpeg
+        await reply.edit("Processing with FFmpeg...")
+        processed_path = await process_with_ffmpeg(filename)
+
+        # Step 4: Upload as document
+        await reply.edit("Uploading processed file...")
+        await send_doc(client, message.chat.id, processed_path)
+
+        await reply.edit("✅ Done! File uploaded.")
+
+    except Exception as e:
+        logger.error(f"Leech Error: {e}")
+        await reply.edit(f"❌ Error:\n{e}")
+
+    finally:
+        # Cleanup
+        for f in [filename, processed_path if 'processed_path' in locals() else None]:
+            if f and os.path.exists(f):
+                os.remove(f)
+
 async def main():
     if WEBHOOK:
         # Start the web server
