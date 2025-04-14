@@ -155,33 +155,49 @@ async def upload_command(client, message: Message):
 @bot.on_message(filters.command("leech") & filters.regex(r'https?://'))
 async def leech_command(client, message: Message):
     """Handle the /leech command to download, process, and upload media."""
+
+    # Extract the URL from the user's message.
     url = re.search(r'(https?://\S+)', message.text).group(1)
-    reply = await message.reply_text("Fetching file...")
+    
+    # Default to None if no custom FFmpeg is provided
+    custom_ffmpeg = None
+    ffmpeg_match = re.search(r'--ffmpeg\s+"([^"]+)"', message.text)
+    if ffmpeg_match:
+        custom_ffmpeg = ffmpeg_match.group(1)
+
+    # Send the initial reply message and store it as the Progress Message
+    reply = await message.reply_text("Fetching file...")  # This is the Progress Message
 
     try:
-        # Step 1: Get filename
+        # Step 1: Get the filename from the URL
         filename = get_filename_from_url(url)
-        await reply.edit(f"Downloading:\n`{filename}`")
+        await reply.edit(f"Downloading:\n`{filename}`")  # Update the progress message with filename.
 
-        # Step 2: Download with progress
-        await download_with_progress(url, filename, reply)
+        # Step 2: Download the file with progress
+        await download_with_progress(url, filename, reply)  # The progress of download is reflected in the Progress Message.
 
-        # Step 3: Process with FFmpeg
-        await reply.edit("Processing with FFmpeg...")
-        processed_path = await process_with_ffmpeg(filename)
+        # Step 3: Process with FFmpeg (using custom_ffmpeg if provided)
+        if custom_ffmpeg:
+            await reply.edit(f"Processing with custom FFmpeg command: `{custom_ffmpeg}`")
+        else:
+            await reply.edit("Processing with default FFmpeg settings...")
+        
+        processed_path = await process_with_ffmpeg(filename, message, reply, custom_ffmpeg)  # Process file
 
-        # Step 4: Upload as document
-        await reply.edit("Uploading processed file...")
-        await send_doc(client, message.chat.id, processed_path)
+        # Step 4: Upload the processed file
+        await reply.edit("Uploading processed file...")  # Update message with uploading progress
+        await send_doc(client, message.chat.id, processed_path)  # Upload the file
 
-        await reply.edit("✅ Done! File uploaded.")
+        # Final completion message
+        await reply.edit("✅ Done! File uploaded.")  # Mark as completed.
 
     except Exception as e:
+        # Handle any errors
         logger.error(f"Leech Error: {e}")
-        await reply.edit(f"❌ Error:\n{e}")
+        await reply.edit(f"❌ Error:\n{e}")  # Update the progress message with the error message.
 
     finally:
-        # Cleanup
+        # Clean up by removing the downloaded and processed files after completion.
         for f in [filename, processed_path if 'processed_path' in locals() else None]:
             if f and os.path.exists(f):
                 os.remove(f)
