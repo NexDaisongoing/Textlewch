@@ -11,6 +11,7 @@ import re
 import sys
 from urllib.parse import urlparse
 from pathlib import Path
+from vars import API_ID, API_HASH, BOT_TOKEN, WEBHOOK, PORT
 
 from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardButton, InlineKeyboardMarkup
@@ -27,6 +28,8 @@ from utlis.download import (
 from utlis.process import process_with_ffmpeg, get_duration, generate_thumbnail
 from utlis.upload import send_doc, send_vid
 from utlis.direct_link import handle_direct_link, process_direct_url
+
+from handlers import register_handlers
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -85,6 +88,8 @@ bot = Client(
     api_hash=os.getenv("API_HASH"),
     bot_token=os.getenv("BOT_TOKEN")
 )
+
+register_handlers(bot)
 
 @bot.on_message(filters.command("start"))
 async def start_command(client, message: Message):
