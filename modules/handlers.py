@@ -10,7 +10,7 @@ from core import (
 )
 from path_finder import register_ffmpeg_path_handler
 from sysinfo import register_system_info_handler
-
+from get_log import register_
 # Define a filter for direct video links
 direct_video_pattern = re.compile(
     r'https?://.*\.(mp4|mkv|avi|mov|webm|flv|3gp|wmv|m4v)(\?.*)?$',
