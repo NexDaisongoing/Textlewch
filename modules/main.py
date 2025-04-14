@@ -138,10 +138,6 @@ async def upload_command(client, message: Message):
 
     for idx, url in enumerate(urls, start=1):
         await editable.edit(f"Processing URL {idx}/{len(urls)}: {url}")
-        if not is_direct_media_url(url):
-            await message.reply_text(f"Skipping invalid URL: {url}")
-            continue
-
         try:
             filename = get_filename_from_url(url)
             await download_with_progress(url, filename, message)
@@ -155,7 +151,6 @@ async def upload_command(client, message: Message):
                 os.remove(file_path)
 
     await editable.edit("All URLs processed successfully!")
-
 
 async def main():
     if WEBHOOK:
