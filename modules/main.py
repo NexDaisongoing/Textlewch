@@ -16,17 +16,17 @@ from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardButton, InlineKeyboardMarkup
 
 # Import utility and modular functions
-from utils.bar import progress_bar, format_time, human_readable_size
-from utils.download import (
+from utlis.bar import progress_bar, format_time, human_readable_size
+from utlis.download import (
     download_with_progress, 
     aio_download, 
     download_video, 
     is_direct_media_url, 
     get_filename_from_url
 )
-from utils.process import process_with_ffmpeg, get_duration, generate_thumbnail
-from utils.upload import send_doc, send_vid
-from utils.direct_link import handle_direct_link, process_direct_url
+from utlis.process import process_with_ffmpeg, get_duration, generate_thumbnail
+from utlis.upload import send_doc, send_vid
+from utlis.direct_link import handle_direct_link, process_direct_url
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
