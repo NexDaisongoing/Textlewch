@@ -11,15 +11,15 @@ from core import (
     download_video
 )
 
-# Make sure this exists somewhere in your code
-# bot = Client("your_bot", ...)
-
+# Define a filter for direct video links
 direct_video_pattern = re.compile(
     r'https?://.*\.(mp4|mkv|avi|mov|webm|flv|3gp|wmv|m4v)(\?.*)?$', re.IGNORECASE
 )
 
-@bot.on_message(filters.command(["direct"]) & filters.text)
-async def direct_link_command(bot, message: Message):
+# Command handler for direct media links
+@Client.on_message(filters.command(["direct"]) & filters.text)
+async def direct_link_command(client, message: Message):
+    """Download and process a direct media link"""
     url = None
     if len(message.command) > 1:
         url = message.command[1]
@@ -32,11 +32,13 @@ async def direct_link_command(bot, message: Message):
         await message.reply_text("❌ Please provide a direct media URL or reply to a message containing a URL.")
         return
 
+    # Extract FFmpeg parameters if provided
     custom_ffmpeg = None
     ffmpeg_match = re.search(r'ffmpeg:(.+?)(?:\s|$)', message.text)
     if ffmpeg_match:
         custom_ffmpeg = ffmpeg_match.group(1).strip()
 
+    # Extract custom filename if provided
     custom_filename = None
     filename_match = re.search(r'filename:(.+?)(?:\s|$)', message.text)
     if filename_match:
@@ -44,8 +46,10 @@ async def direct_link_command(bot, message: Message):
 
     await handle_direct_link(message, url, custom_filename, custom_ffmpeg)
 
-@bot.on_message(filters.regex(direct_video_pattern) & ~filters.command([]))
-async def auto_direct_link_handler(bot, message: Message):
+# Auto-detect direct media links in messages
+@Client.on_message(filters.regex(direct_video_pattern) & ~filters.command([]))
+async def auto_direct_link_handler(client, message: Message):
+    """Automatic handling of direct media links in messages"""
     urls = re.findall(
         r'(https?://[^\s]+\.(mp4|mkv|avi|mov|webm|flv|3gp|wmv|m4v)(\?.*)?)',
         message.text, re.IGNORECASE
@@ -53,6 +57,7 @@ async def auto_direct_link_handler(bot, message: Message):
     if not urls:
         return
 
+    # Extract the first URL found
     url = urls[0][0]
 
     confirm_msg = await message.reply_text(
@@ -63,12 +68,14 @@ async def auto_direct_link_handler(bot, message: Message):
         f"- `!cancel` - Ignore this link"
     )
 
-    @bot.on_message(filters.reply & filters.text & filters.user(message.from_user.id), group=123)
-    async def wait_for_response(bot, response):
+    @Client.on_message(filters.reply & filters.text & filters.user(message.from_user.id), group=123)
+    async def wait_for_response(client, response):
         if response.reply_to_message.id != confirm_msg.id:
             return
 
-        bot.remove_handler(wait_for_response, group=123)
+        # Remove the handler
+        client.remove_handler(wait_for_response, group=123)
+
         command = response.text.lower().strip()
 
         if command == "!download":
@@ -80,12 +87,12 @@ async def auto_direct_link_handler(bot, message: Message):
                 "Or type `!default` for standard processing, or `!cancel` to cancel."
             )
 
-            @bot.on_message(filters.reply & filters.text & filters.user(message.from_user.id), group=124)
-            async def wait_for_ffmpeg(bot, ffmpeg_response):
+            @Client.on_message(filters.reply & filters.text & filters.user(message.from_user.id), group=124)
+            async def wait_for_ffmpeg(client, ffmpeg_response):
                 if ffmpeg_response.reply_to_message.id != ffmpeg_msg.id:
                     return
 
-                bot.remove_handler(wait_for_ffmpeg, group=124)
+                client.remove_handler(wait_for_ffmpeg, group=124)
 
                 ffmpeg_params = ffmpeg_response.text.strip()
 
@@ -102,8 +109,10 @@ async def auto_direct_link_handler(bot, message: Message):
         else:
             await confirm_msg.edit("❌ Invalid command. Operation cancelled.")
 
-@bot.on_message(filters.command(["process"]) & filters.text)
-async def process_media_command(bot, message: Message):
+# Command for downloading with custom FFmpeg processing
+@Client.on_message(filters.command(["process"]) & filters.text)
+async def process_media_command(client, message: Message):
+    """Process a media file with custom FFmpeg parameters"""
     if len(message.command) < 3:
         await message.reply_text(
             "❌ Please provide both URL and FFmpeg parameters.\n\n"
@@ -116,8 +125,10 @@ async def process_media_command(bot, message: Message):
     ffmpeg_params = ' '.join(message.command[2:])
     await handle_direct_link(message, url, None, ffmpeg_params)
 
-@bot.on_message(filters.command(["ffmpeg_presets"]))
-async def show_ffmpeg_presets(bot, message: Message):
+# Command to show FFmpeg presets
+@Client.on_message(filters.command(["ffmpeg_presets"]))
+async def show_ffmpeg_presets(client, message: Message):
+    """Show available FFmpeg presets"""
     presets = {
         "compress": "-c:v libx264 -preset slow -crf 28 -c:a aac -b:a 96k",
         "hevc": "-c:v libx265 -preset medium -crf 28 -c:a aac -b:a 128k",
