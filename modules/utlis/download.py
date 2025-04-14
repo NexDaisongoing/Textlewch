@@ -10,7 +10,7 @@ import subprocess
 import re
 from urllib.parse import urlparse
 
-from .bar import download_progress_bar
+from utlis.bar import download_progress_bar
 
 logger = logging.getLogger(__name__)
 
