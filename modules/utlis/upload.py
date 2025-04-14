@@ -7,6 +7,8 @@ from pyrogram.types import Message
 from utlis.bar import upload_progress_bar
 from utlis.process import get_duration, generate_thumbnail
 
+
+logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 async def send_doc(bot: Client, m: Message, caption, file_path, reply_caption, progress_msg=None, count=0, name=None):
