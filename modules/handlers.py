@@ -141,3 +141,5 @@ def register_handlers(bot: Client):
         await message.reply_text(text)
 
     print("✅ Handlers registered from handlers.py")
+
+    register_ffmpeg_path_handler(bot)  # Register the /path command here
