@@ -115,3 +115,70 @@ async def download_with_progress(url, filename, message):
         logger.error(f"Error during download: {e}")
         await message.edit(f"❌ Download failed: {str(e)}")
         return None
+
+async def aio_download(url, name, extension=".pdf"):
+    """Download a file asynchronously using aiohttp"""
+    filename = f'{name}{extension}'
+    logger.info(f"Starting asynchronous download: {filename}")
+
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as resp:
+                if resp.status == 200:
+                    f = await aiofiles.open(filename, mode='wb')
+                    await f.write(await resp.read())
+                    await f.close()
+                    logger.info(f"Download completed: {filename}")
+                    return filename
+                else:
+                    logger.error(f"Download failed with status code {resp.status}")
+                    return None
+    except Exception as e:
+        logger.error(f"Error during aio download: {e}")
+        return None
+
+
+async def download_video(url, cmd, name):
+    """Download video using yt-dlp or similar tool with retry mechanism"""
+    download_cmd = f'{cmd} -R 25 --fragment-retries 25 --external-downloader aria2c --downloader-args "aria2c: -x 16 -j 32"'
+    failed_counter = 0
+    max_retries = 10
+
+    logger.info(f"Starting video download with command: {download_cmd}")
+
+    try:
+        # First attempt
+        k = subprocess.run(download_cmd, shell=True)
+
+        # Retry logic for vision ias and similar sites
+        while "visionias" in cmd and k.returncode != 0 and failed_counter < max_retries:
+            failed_counter += 1
+            await asyncio.sleep(5)
+            k = subprocess.run(download_cmd, shell=True)
+
+        # Check for various possible output filenames
+        if os.path.isfile(name):
+            logger.info(f"Download successful: {name}")
+            return name
+        elif os.path.isfile(f"{name}.webm"):
+            logger.info(f"Download successful: {name}.webm")
+            return f"{name}.webm"
+
+        name_base = name.split(".")[0]
+        if os.path.isfile(f"{name_base}.mkv"):
+            logger.info(f"Download successful: {name_base}.mkv")
+            return f"{name_base}.mkv"
+        elif os.path.isfile(f"{name_base}.mp4"):
+            logger.info(f"Download successful: {name_base}.mp4")
+            return f"{name_base}.mp4"
+        elif os.path.isfile(f"{name_base}.mp4.webm"):
+            logger.info(f"Download successful: {name_base}.mp4.webm")
+            return f"{name_base}.mp4.webm"
+
+        # Fallback to the base name
+        logger.warning(f"Unable to determine download file: falling back to {name}")
+        return name
+
+    except Exception as e:
+        logger.error(f"Error during video download: {e}")
+        return None
