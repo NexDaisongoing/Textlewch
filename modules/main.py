@@ -13,7 +13,8 @@ from urllib.parse import urlparse
 from pathlib import Path
 from vars import API_ID, API_HASH, BOT_TOKEN, WEBHOOK, PORT
 
-from pyromod import Client, filters
+from pyromod import Client
+from pyrogram import filters
 from pyrogram.types import Message, InlineKeyboardButton, InlineKeyboardMarkup
 
 # Import utility and modular functions
