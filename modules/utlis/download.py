@@ -164,3 +164,24 @@ async def download_video(url, cmd, name):
     except Exception as e:
         logger.error(f"Error during video download: {e}")
         return None
+
+async def aio_download(url, name, extension=".pdf"):
+    """Download a file asynchronously using aiohttp"""
+    filename = f'{name}{extension}'
+    logger.info(f"Starting asynchronous download: {filename}")
+
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as resp:
+                if resp.status == 200:
+                    f = await aiofiles.open(filename, mode='wb')
+                    await f.write(await resp.read())
+                    await f.close()
+                    logger.info(f"Download completed: {filename}")
+                    return filename
+                else:
+                    logger.error(f"Download failed with status code {resp.status}")
+                    return None
+    except Exception as e:
+        logger.error(f"Error during aio download: {e}")
+        return None
