@@ -33,7 +33,7 @@ from utlis.direct_link import handle_direct_link, process_direct_url
 from handlers import register_handlers
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 # Global variables for tracking download/processing progress
