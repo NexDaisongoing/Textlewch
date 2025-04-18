@@ -39,8 +39,7 @@ def pro_feature(bot: Client):
         ensure_dir(download_dir)
 
         # Download the file
-        local_in = await file_msg.download(
-            file_name=os.path.join(download_dir, f"input_{file_msg.message_id}{ext}")
+        local_in = await file_msg.download(file_name=file_name)
         )
 
         # Confirm download
