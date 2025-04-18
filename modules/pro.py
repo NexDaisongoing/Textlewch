@@ -2,6 +2,7 @@ import os
 import asyncio
 from pyrogram import filters, Client
 from pyrogram.types import Message
+from pyrogram.enums import ChatAction
 from pyromod import listen  # For listening to user messages
 
 # Directory where files are stored and processed
@@ -94,7 +95,7 @@ def pro_feature(bot: Client):
             return await m.reply_text(f"❌ Processing failed:\n`{err_msg}`")
 
         # Upload the processed file
-        await m.reply_chat_action("upload_document")
+        await m.reply_chat_action(ChatAction.UPLOAD_DOCUMENT)
         await m.reply_document(local_out, caption="✅ Here is your processed file.")
 
         # Clean up files
