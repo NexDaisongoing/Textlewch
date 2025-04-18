@@ -38,6 +38,8 @@ def pro_feature(bot: Client):
         # Ensure the download directory exists
         ensure_dir(download_dir)
 
+        file_name = os.path.join(download_dir, f"input_{file_msg.id}{ext}")
+
         # Download the file
         local_in = await file_msg.download(file_name=file_name)
         
