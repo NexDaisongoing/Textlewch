@@ -22,6 +22,13 @@ download_dir = "./downloads/pro"
 def ensure_dir(path):
     os.makedirs(path, exist_ok=True)
 
+# Function to split messages that are too long
+async def send_message_in_parts(bot, chat_id, message):
+    max_length = 4096
+    message_parts = [message[i:i+max_length] for i in range(0, len(message), max_length)]
+    for part in message_parts:
+        await bot.send_message(chat_id, part)
+
 # Main handler function for the "pro" command
 def pro_feature(bot: Client):
     @bot.on_message(filters.command("pro") & filters.private)
@@ -104,7 +111,10 @@ def pro_feature(bot: Client):
                 # Capture full error message
                 err_msg = stderr.decode(errors="ignore").strip()
                 logging.error(f"FFmpeg processing failed for file {file_name}. Full error message:\n{err_msg}")
-                return await m.reply_text(f"❌ Processing failed:\n`{err_msg}`")
+                
+                # Split and send long error messages
+                await send_message_in_parts(bot, m.chat.id, f"❌ Processing failed:\n`{err_msg}`")
+                return
 
             # Upload the processed file
             await m.reply_chat_action(ChatAction.UPLOAD_DOCUMENT)
@@ -119,4 +129,4 @@ def pro_feature(bot: Client):
 
         except Exception as e:
             logging.error(f"Unexpected error in pro_handler: {e}")
-            await m.reply_text(f"❌ An unexpected error occurred: {e}")
+            await send_message_in_parts(bot, m.chat.id, f"❌ An unexpected error occurred: {e}")
