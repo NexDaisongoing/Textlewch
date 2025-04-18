@@ -22,6 +22,7 @@ from pyrogram.errors.exceptions.bad_request_400 import StickerEmojiInvalid
 from pyrogram.types.messages_and_media import message
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from style import Ashu 
+from pro import pro_feature
 
 # Initialize the bot
 bot = Client(
@@ -30,6 +31,8 @@ bot = Client(
     api_hash=API_HASH,
     bot_token=BOT_TOKEN
 )
+
+pro_feature(bot)
 
 # Define aiohttp routes
 routes = web.RouteTableDef()
