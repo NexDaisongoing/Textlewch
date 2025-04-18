@@ -23,6 +23,7 @@ from pyrogram.types.messages_and_media import message
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from style import Ashu 
 from pro import pro_feature
+from fvr import create_ffmpeg_log_file
 
 # Initialize the bot
 bot = Client(
@@ -33,6 +34,7 @@ bot = Client(
 )
 
 pro_feature(bot)
+create_ffmpeg_log_file(bot)
 
 # Define aiohttp routes
 routes = web.RouteTableDef()
