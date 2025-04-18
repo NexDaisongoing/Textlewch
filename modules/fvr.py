@@ -6,7 +6,7 @@ from pyrogram.types import Message
 # Colab-safe path for storing FFmpeg logs
 FFMPEG_LOG_FILE_PATH = "/content/ffmpeg_logs.txt"
 
-def create_ffmpeg_log_file():
+def create_ffmpeg_log_file(bot):
     """Create the FFmpeg log file if it doesn't exist."""
     if not os.path.exists(FFMPEG_LOG_FILE_PATH):
         with open(FFMPEG_LOG_FILE_PATH, "w") as log_file:
