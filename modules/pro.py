@@ -40,7 +40,7 @@ def pro_feature(bot: Client):
 
         # Download the file
         local_in = await file_msg.download(
-            file_name=os.path.join(download_dir, f"input_{m.message_id}{ext}")
+            file_name=os.path.join(download_dir, f"input_{file_msg.message_id}{ext}")
         )
 
         # Confirm download
