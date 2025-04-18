@@ -22,7 +22,7 @@ def get_gpu_info():
         LOGS.warning(f"GPU info not available via nvidia-smi: {e}")
         return "GPU Not Available", 0.0, 0.0
 
-def register_system_info_handler(bot):
+def register_system_info_handler(bot: Client):
     @bot.on_message(filters.command("systeminfo"))
     async def system_info(client, message: Message):
         LOGS.info(f"Received /systeminfo from {message.from_user.id if message.from_user else 'Unknown'}")
