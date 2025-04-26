@@ -55,6 +55,8 @@ start - Start the bot
 stop  - Stop current uploads
 upload - Upload text files
 pro   - Access FFmpeg features
+sysinfo - System Info
+flogs - For FFmpeg Version Details
 ```
 
 ## ꜰᴇᴀᴛᴜʀᴇs
