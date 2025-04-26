@@ -65,7 +65,7 @@ pro   - Access FFmpeg features
   [![Woodcraft](https://img.shields.io/badge/𝐖𝐎𝐎𝐃𝐜𝐫𝐚𝐟𝐭-26A5E4?style=for-the-badge&logo=telegram&logoColor=white)](https://t.me/Opleech_WD)
   [![Ashutosh](https://img.shields.io/badge/𝗔𝘀𝗵𝘂𝘁𝗼𝘀𝗵𝗚𝗼𝘀𝘄𝗮𝗺𝗶-26A5E4?style=for-the-badge&logo=telegram&logoColor=white)](https://t.me/AshutoshGoswami24)
   [![Support](https://img.shields.io/badge/Support_Channel-26A5E4?style=for-the-badge&logo=telegram&logoColor=white)](https://t.me/AshuSupport)
-  [![Naman](https://img.shields.io/badge/Your_Username-26A5E4?style=for-the-badge&logo=telegram&logoColor=white)](https://t.me/Naman_Sama)
+  [![Naman](https://img.shields.io/badge/Naman-Sama-26A5E4?style=for-the-badge&logo=telegram&logoColor=white)](https://t.me/Naman_Sama)
   
 </div>
 
