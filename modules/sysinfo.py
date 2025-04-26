@@ -23,7 +23,7 @@ def get_gpu_info():
         return "GPU Not Available", 0.0, 0.0
 
 def register_system_info_handler(bot):
-    @bot.on_message(filters.command("systeminfo"))
+    @bot.on_message(filters.command("sysinfo"))
     async def system_info(client, message: Message):
         LOGS.info(f"Received /systeminfo from {message.from_user.id if message.from_user else 'Unknown'}")
         try:
