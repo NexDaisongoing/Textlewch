@@ -1,7 +1,7 @@
 # ᴛᴇxᴛ ʟᴇᴇᴄʜ ʙᴏᴛ
 
 <div align="left">
-
+<img https://telegra.ph/file/2e346a3806987ef34578f-03b045cacaaeb9f35d.jpg, width="100%">
 A minimalist Telegram bot for text file uploads with FFmpeg support.
 
   ![Version](https://img.shields.io/badge/version-1.0R-blue?style=flat-square)
