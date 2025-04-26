@@ -1,8 +1,6 @@
 # ᴛᴇxᴛ ʟᴇᴇᴄʜ ʙᴏᴛ
 
 <div align="center">
-  
-  <img src="https://github.com/NexDaisongoing/Textlewch/raw/main/.github/img/banner.png" alt="TextLeechBot" width="500px">
 
   <p><em>A minimalist Telegram bot for text file uploads with FFmpeg support</em></p>
   
@@ -17,6 +15,7 @@
 <div align="center">
   
   [![Heroku](https://img.shields.io/badge/Deploy_to-Heroku-7056bf?style=for-the-badge&logo=heroku)](https://heroku.com/deploy?template=https://github.com/AshutoshGoswami24/text-leech-bot)
+
   [![Google Colab](https://img.shields.io/badge/Deploy_to-Colab-F9AB00?style=for-the-badge&logo=googlecolab&logoColor=white)](https://colab.research.google.com/github/NexDaisongoing/Textlewch/blob/V1.0R/deploy.ipynb)
   [![Koyeb](https://img.shields.io/badge/Deploy_to-Koyeb-121212?style=for-the-badge&logo=koyeb)](https://app.koyeb.com/deploy?type=git&repository=github.com/AshutoshGoswami24/text-leech-bot&branch=main&name=ashutoshgoswami)
   [![Render](https://img.shields.io/badge/Deploy_to-Render-46E3B7?style=for-the-badge&logo=render&logoColor=white)](https://render.com/deploy?repo=https://github.com/AshutoshGoswami24/text-leech-bot)
@@ -26,7 +25,7 @@
 ## ᴠᴘs ᴅᴇᴘʟᴏʏᴍᴇɴᴛ
 
 ```bash
-git clone https://github.com/AshutoshGoswami24/text-leech-bot
+git clone https://github.com/NexDaisongoing/Textlewch.git
 cd text-leech-bot
 pip install -r requirements.txt
 sudo apt update && sudo apt install ffmpeg -y
@@ -50,7 +49,7 @@ Edit [`vars.py`](https://github.com/AshutoshGoswami24/text-leech-bot/blob/main/m
 ```
 start - Start the bot
 stop  - Stop current uploads
-uplod - Upload text files
+upload - Upload text files
 pro   - Access FFmpeg features
 ```
 
@@ -68,12 +67,12 @@ pro   - Access FFmpeg features
   [![Woodcraft](https://img.shields.io/badge/𝐖𝐎𝐎𝐃𝐜𝐫𝐚𝐟𝐭-26A5E4?style=for-the-badge&logo=telegram&logoColor=white)](https://t.me/Opleech_WD)
   [![Ashutosh](https://img.shields.io/badge/𝗔𝘀𝗵𝘂𝘁𝗼𝘀𝗵𝗚𝗼𝘀𝘄𝗮𝗺𝗶-26A5E4?style=for-the-badge&logo=telegram&logoColor=white)](https://t.me/AshutoshGoswami24)
   [![Support](https://img.shields.io/badge/Support_Channel-26A5E4?style=for-the-badge&logo=telegram&logoColor=white)](https://t.me/AshuSupport)
-  [![Your Username](https://img.shields.io/badge/Your_Username-26A5E4?style=for-the-badge&logo=telegram&logoColor=white)](https://t.me/YourUsername)
+  [![Naman](https://img.shields.io/badge/Your_Username-26A5E4?style=for-the-badge&logo=telegram&logoColor=white)](https://t.me/Naman_Sama)
   
 </div>
 
 ---
 
 <div align="center">
-  <sub>Modified with FFmpeg support by <b>Your Username</b> | Original work by <b>𝐖𝐎𝐎𝐃𝐜𝐫𝐚𝐟𝐭</b> & <b>𝗔𝘀𝗵𝘂𝘁𝗼𝘀𝗵𝗚𝗼𝘀𝘄𝗮𝗺𝗶𝟮𝟰</b></sub>
+  <sub>Modified with FFmpeg support by <b>Naman</b> | Original work by <b>𝐖𝐎𝐎𝐃𝐜𝐫𝐚𝐟𝐭</b> & <b>𝗔𝘀𝗵𝘂𝘁𝗼𝘀𝗵𝗚𝗼𝘀𝘄𝗮𝗺𝗶𝟮𝟰</b></sub>
 </div>
