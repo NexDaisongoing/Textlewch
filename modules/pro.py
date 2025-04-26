@@ -57,7 +57,9 @@ def pro_feature(bot: Client):
             # Ensure the download directory exists
             ensure_dir(download_dir)
 
-            file_name = os.path.join(download_dir, f"input_{file_msg.id}{ext}")
+            # Retain original filename if available
+            original_name = media.file_name or f"input_{file_msg.id}{ext}"
+            file_name = os.path.join(download_dir, original_name)
 
             # Download the file
             local_in = await file_msg.download(file_name=file_name)
@@ -90,9 +92,9 @@ def pro_feature(bot: Client):
                 cmd_msg = await bot.listen(m.chat.id)
                 ff_args = cmd_msg.text.strip()
 
-            # Create output file path
-            base, _ = os.path.splitext(local_in)
-            local_out = f"{base}_pro.mkv"
+            # Create output file path based on original file name
+            base_name, _ = os.path.splitext(original_name)
+            local_out = os.path.join(download_dir, f"{base_name} @Anime_Surge.mkv")
 
             # Build the ffmpeg command
             cmd = f"ffmpeg -i '{local_in}' {ff_args} '{local_out}'"
