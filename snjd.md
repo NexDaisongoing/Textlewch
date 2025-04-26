@@ -11,7 +11,8 @@
 </div>
 
 ## ᴅᴇᴘʟᴏʏᴍᴇɴᴛ
-
+<details>
+    <summary><b>View Features</b></summary>
 <div align="left">
   
   [![Heroku](https://img.shields.io/badge/Deploy_to-Heroku-7056bf?style=for-the-badge&logo=heroku)](https://heroku.com/deploy?template=https://github.com/AshutoshGoswami24/text-leech-bot) [![Google Colab](https://img.shields.io/badge/Deploy_to-Colab-F9AB00?style=for-the-badge&logo=googlecolab&logoColor=white)](https://colab.research.google.com/github/NexDaisongoing/Textlewch/blob/V1.0R/deploy.ipynb)
