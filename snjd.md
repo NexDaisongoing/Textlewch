@@ -4,7 +4,7 @@
 
 A minimalist Telegram bot for text file uploads with FFmpeg support.
 
-  ![Version](https://img.shields.io/badge/version-2.0-blue?style=flat-square)
+  ![Version](https://img.shields.io/badge/version-1.0R-blue?style=flat-square)
   ![FFmpeg](https://img.shields.io/badge/FFmpeg-supported-green?style=flat-square)
   ![License](https://img.shields.io/badge/license-MIT-orange?style=flat-square)
   
