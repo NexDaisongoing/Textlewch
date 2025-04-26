@@ -2,7 +2,8 @@
 
 <div align="left">
 
-<img https://telegra.ph/file/2e346a3806987ef34578f-03b045cacaaeb9f35d.jpg, width="100%">
+![Compressor Bot](https://telegra.ph/file/7e3c7f4f70272c6e59c52.jpg)
+
 
 A minimalist Telegram bot for text file uploads with FFmpeg support.
 
