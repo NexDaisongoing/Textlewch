@@ -2,7 +2,7 @@
 
 <div align="center">
   
-  <img src="https://github.com/AshutoshGoswami24/text-leech-bot/raw/main/.github/img/banner.png" alt="TextLeechBot" width="500px">
+  <img src="https://github.com/NexDaisongoing/Textlewch/raw/main/.github/img/banner.png" alt="TextLeechBot" width="500px">
 
   <p><em>A minimalist Telegram bot for text file uploads with FFmpeg support</em></p>
   
