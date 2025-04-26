@@ -2,17 +2,14 @@
 
 <div align="left">
 
-  <p><em>A minimalist Telegram bot for text file uploads with FFmpeg support</em></p>
-  
+A minimalist Telegram bot for text file uploads with FFmpeg support.
+
   ![Version](https://img.shields.io/badge/version-2.0-blue?style=flat-square)
   ![FFmpeg](https://img.shields.io/badge/FFmpeg-supported-green?style=flat-square)
   ![License](https://img.shields.io/badge/license-MIT-orange?style=flat-square)
   
 </div>
 
-## ᴅᴇᴘʟᴏʏᴍᴇɴᴛ
-<details>
-    <summary><b>View Features</b></summary>
 <div align="left">
   
   [![Heroku](https://img.shields.io/badge/Deploy_to-Heroku-7056bf?style=for-the-badge&logo=heroku)](https://heroku.com/deploy?template=https://github.com/AshutoshGoswami24/text-leech-bot) [![Google Colab](https://img.shields.io/badge/Deploy_to-Colab-F9AB00?style=for-the-badge&logo=googlecolab&logoColor=white)](https://colab.research.google.com/github/NexDaisongoing/Textlewch/blob/V1.0R/deploy.ipynb)
