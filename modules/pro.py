@@ -95,7 +95,7 @@ def pro_feature(bot: Client):
             local_out = f"{base}_pro.mkv"
 
             # Build the ffmpeg command
-            cmd = f"ffmpeg -hwaccel cuda -hwaccel_output_format cuda -i '{local_in}' {ff_args} '{local_out}'"
+            cmd = f"ffmpeg -hwaccel cuda -hwaccel_output_format cuda -i '{local_in}' -vf hwupload_cuda {ff_args} '{local_out}'"
             await m.reply_text(f"⚙️ Processing with ffmpeg...\n`{cmd}`")
 
             # Run the ffmpeg command
