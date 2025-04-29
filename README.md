@@ -4,7 +4,7 @@ Still In Devlopment [ Only Colab Works ]
 
 <div align="left">
 
-![Compressor Bot](https://telegra.ph/file/2e346a3806987ef34578f-03b045cacaaeb9f35d.jpg)
+![IMG](https://telegra.ph/file/2e346a3806987ef34578f-03b045cacaaeb9f35d.jpg)
 
 
 A minimalist Telegram bot for text file uploads with FFmpeg support.
