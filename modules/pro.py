@@ -150,7 +150,7 @@ def pro_feature(bot: Client):
 
             # If test feature enabled, send ffmpeg command in monospace
             if test_feature.get(m.chat.id, True):
-                await m.reply_text(f"Here is the FFmpeg command used:\n```bash\n{cmd}\n```")
+                await m.reply_text(f"Here is the FFmpeg command used:\n```bash\n{ff_args}\n```")
 
             await status_message.edit_text(
                 f"✅ **FFmpeg Processing Complete**\n\n"
