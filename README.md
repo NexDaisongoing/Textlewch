@@ -20,7 +20,7 @@ A minimalist Telegram bot for text file uploads with FFmpeg support.
 <div align="left">
   
   [![Heroku](https://img.shields.io/badge/Deploy_to-Heroku-7056bf?style=for-the-badge&logo=heroku)](https://heroku.com/deploy?template=https://github.com/AshutoshGoswami24/text-leech-bot) 
-  [![Google Colab](https://img.shields.io/badge/Deploy_to-Colab-F9AB00?style=for-the-badge&logo=googlecolab&logoColor=white)](https://colab.research.google.com/github/NexDaisongoing/Textlewch/blob/V1.0R/deploy.ipynb)
+  [![Google Colab](https://img.shields.io/badge/Deploy_to-Colab-F9AB00?style=for-the-badge&logo=googlecolab&logoColor=white)](https://colab.research.google.com/github/NexDaisongoing/Textlewch/blob/V1.1R/deploy.ipynb)
   [![Koyeb](https://img.shields.io/badge/Deploy_to-Koyeb-121212?style=for-the-badge&logo=koyeb)](https://app.koyeb.com/deploy?type=git&repository=github.com/AshutoshGoswami24/text-leech-bot&branch=main&name=ashutoshgoswami)
   [![Render](https://img.shields.io/badge/Deploy_to-Render-46E3B7?style=for-the-badge&logo=render&logoColor=white)](https://render.com/deploy?repo=https://github.com/AshutoshGoswami24/text-leech-bot)
   
