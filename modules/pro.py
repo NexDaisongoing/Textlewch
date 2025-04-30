@@ -123,7 +123,7 @@ async def process_with_ffmpeg(bot, m: Message, input_path, status_msg):
             '-hide_banner',  # Hide version info to get cleaner errors
             '-y',  # Overwrite output file if exists
             '-i', input_path,
-            *ffmpeg_cmd.split(),  # Split the user's command into parts
+            ffmpeg_cmd,  # Split the user's command into parts
             output_path
         ]
 
