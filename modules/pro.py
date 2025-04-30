@@ -119,13 +119,13 @@ async def process_with_ffmpeg(bot, m: Message, input_path, status_msg):
 
         # Build FFmpeg command more safely
         cmd = [
-            'ffmpeg',
-            '-hide_banner',  # Hide version info to get cleaner errors
-            '-y',  # Overwrite output file if exists
-            '-i', input_path,
-            ffmpeg_cmd,  # Split the user's command into parts
-            output_path
-        ]
+    'ffmpeg',
+    '-hide_banner',
+    '-y',
+    '-i', local_in,
+    *shlex.split(ff_args),
+    local_out
+]
 
         proc = await asyncio.create_subprocess_exec(
             *cmd,
