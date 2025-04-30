@@ -3,6 +3,7 @@ import asyncio
 import logging
 import time
 import psutil
+import shlex
 from pyrogram import Client, filters, enums
 from pyrogram.types import Message
 from pyrogram.errors import MessageNotModified
@@ -87,10 +88,7 @@ async def download_with_progress(bot, chat_id, file_msg, file_path, status_msg):
 
 async def process_with_ffmpeg(bot, m: Message, input_path, status_msg):
     try:
-        # Ask for FFmpeg commands
-        await status_msg.edit_text(
-            "Starting FFmpeg Process!\n\n"
-        )
+        await status_msg.edit_text("Starting FFmpeg Process!\n\nSend your FFmpeg command:")
 
         cmd_msg = await bot.listen(m.chat.id)
         ffmpeg_cmd = cmd_msg.text.strip()
@@ -108,24 +106,21 @@ async def process_with_ffmpeg(bot, m: Message, input_path, status_msg):
             ffmpeg_cmd = cmd_msg.text.strip()
             await cmd_msg.delete()
 
-        # Prepare output file
         base_name = os.path.splitext(os.path.basename(input_path))[0]
         output_path = os.path.join(DOWNLOAD_DIR, f"{base_name}_processed.mkv")
 
-        # Start processing
         start_time = time.time()
         total_size = os.path.getsize(input_path)
-        ff_args = ffmpeg_cmd  # Store the command for display
+        ff_args = ffmpeg_cmd
 
-        # Build FFmpeg command more safely
         cmd = [
-    'ffmpeg',
-    '-hide_banner',
-    '-y',
-    '-i', local_in,
-    *shlex.split(ff_args),
-    local_out
-]
+            'ffmpeg',
+            '-hide_banner',
+            '-y',
+            '-i', input_path,
+            *shlex.split(ff_args),
+            output_path
+        ]
 
         proc = await asyncio.create_subprocess_exec(
             *cmd,
@@ -133,37 +128,25 @@ async def process_with_ffmpeg(bot, m: Message, input_path, status_msg):
             stderr=asyncio.subprocess.PIPE
         )
 
-        # Progress tracking
         while True:
-            await asyncio.sleep(1)  # Update every second
-            
-            # Check process status
+            await asyncio.sleep(1)
             if proc.returncode is not None:
                 break
-                
-            # Get current file size
+
             try:
                 current_size = os.path.getsize(output_path) if os.path.exists(output_path) else 0
             except:
                 current_size = 0
-                
-            # Calculate progress
+
             elapsed = time.time() - start_time
             percentage = (current_size / total_size) * 100 if total_size > 0 else 0
-            
-            # Calculate speed (using input size as reference)
             speed = current_size / (elapsed + 0.001)
             speed_display = f"{speed/1024:.1f} kB/s" if speed < 1024*1024 else f"{speed/(1024*1024):.1f} MB/s"
-            
-            # Calculate ETA
             remaining = total_size - current_size
             eta = remaining / (speed + 0.001)
-            
-            # Get system stats
             cpu = psutil.cpu_percent()
             ram = psutil.virtual_memory()
-            
-            # Prepare progress message
+
             progress_text = (
                 "Encoding:\n\n"
                 f"{get_progress_bar(percentage)} {percentage:.1f}%\n"
@@ -174,22 +157,18 @@ async def process_with_ffmpeg(bot, m: Message, input_path, status_msg):
                 f"CPU: {cpu}% | RAM: {format_size(ram.used)}/{format_size(ram.total)}\n\n"
                 f"<code>{ff_args}</code>"
             )
-            
+
             try:
                 await status_msg.edit_text(progress_text)
-            except MessageNotModified:
-                pass
             except Exception as e:
-                logging.error(f"Progress update error: {e}")
+                if "Message is not modified" not in str(e):
+                    logging.warning(f"Progress update error: {e}")
 
-        # Check result
         stdout, stderr = await proc.communicate()
         if proc.returncode != 0:
             error_msg = stderr.decode().strip()
-            # Try to extract the actual error message (last few lines)
             error_lines = error_msg.split('\n')
-            relevant_error = '\n'.join(error_lines[-10:])  # Get last 10 lines
-            
+            relevant_error = '\n'.join(error_lines[-10:])
             await status_msg.edit_text(
                 f"❌ FFmpeg Processing Failed\n\n"
                 f"Command: {' '.join(cmd)}\n\n"
