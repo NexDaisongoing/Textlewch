@@ -89,10 +89,7 @@ async def process_with_ffmpeg(bot, m: Message, input_path, status_msg):
     try:
         # Ask for FFmpeg commands
         await status_msg.edit_text(
-            "✅ Download Complete!\n\n"
-            "📝 Please send your FFmpeg commands\n"
-            "Example: `-vf scale=1280:720 -c:v libx264 -crf 23`\n"
-            "Type 'help' for examples"
+            "Starting FFmpeg Process!\n\n"
         )
 
         cmd_msg = await bot.listen(m.chat.id)
@@ -117,14 +114,21 @@ async def process_with_ffmpeg(bot, m: Message, input_path, status_msg):
 
         # Start processing
         start_time = time.time()
-        last_update = 0
         total_size = os.path.getsize(input_path)
         ff_args = ffmpeg_cmd  # Store the command for display
 
-        # Build FFmpeg command
-        cmd = f"ffmpeg -i '{input_path}' {ffmpeg_cmd} '{output_path}'"
-        proc = await asyncio.create_subprocess_shell(
-            cmd,
+        # Build FFmpeg command more safely
+        cmd = [
+            'ffmpeg',
+            '-hide_banner',  # Hide version info to get cleaner errors
+            '-y',  # Overwrite output file if exists
+            '-i', input_path,
+            *ffmpeg_cmd.split(),  # Split the user's command into parts
+            output_path
+        ]
+
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE
         )
@@ -182,9 +186,14 @@ async def process_with_ffmpeg(bot, m: Message, input_path, status_msg):
         stdout, stderr = await proc.communicate()
         if proc.returncode != 0:
             error_msg = stderr.decode().strip()
+            # Try to extract the actual error message (last few lines)
+            error_lines = error_msg.split('\n')
+            relevant_error = '\n'.join(error_lines[-10:])  # Get last 10 lines
+            
             await status_msg.edit_text(
                 f"❌ FFmpeg Processing Failed\n\n"
-                f"Error: {error_msg[:400]}..."
+                f"Command: {' '.join(cmd)}\n\n"
+                f"Error: {relevant_error}"
             )
             return None
 
