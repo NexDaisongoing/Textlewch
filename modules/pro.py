@@ -89,7 +89,6 @@ async def download_with_progress(bot, chat_id, file_msg, file_path, status_msg):
 async def process_with_ffmpeg(bot, m: Message, input_path, status_msg):
     try:
         await status_msg.edit_text("Starting FFmpeg Process!\n\nSend your FFmpeg command:")
-
         cmd_msg = await bot.listen(m.chat.id)
         ffmpeg_cmd = cmd_msg.text.strip()
         await cmd_msg.delete()
@@ -128,29 +127,41 @@ async def process_with_ffmpeg(bot, m: Message, input_path, status_msg):
             stderr=asyncio.subprocess.PIPE
         )
 
+        encoded_size = 0
+        bitrate_kbps = 0
+
         while True:
-            await asyncio.sleep(1)
-            if proc.returncode is not None:
+            line = await proc.stderr.readline()
+            if not line:
                 break
 
-            try:
-                current_size = os.path.getsize(output_path) if os.path.exists(output_path) else 0
-            except:
-                current_size = 0
+            decoded_line = line.decode("utf-8", errors="ignore").strip()
 
+            # Extract encoded size
+            size_match = re.search(r"size=\s*(\d+)\s*kB", decoded_line)
+            if size_match:
+                encoded_size = int(size_match.group(1)) * 1024  # convert to bytes
+
+            # Extract bitrate
+            bitrate_match = re.search(r"bitrate=\s*([\d\.]+)\s*kbits/s", decoded_line)
+            if bitrate_match:
+                bitrate_kbps = float(bitrate_match.group(1))
+
+            # Progress calculations
             elapsed = time.time() - start_time
-            percentage = (current_size / total_size) * 100 if total_size > 0 else 0
-            speed = current_size / (elapsed + 0.001)
-            speed_display = f"{speed/1024:.1f} kB/s" if speed < 1024*1024 else f"{speed/(1024*1024):.1f} MB/s"
-            remaining = total_size - current_size
-            eta = remaining / (speed + 0.001)
+            percentage = (encoded_size / total_size) * 100 if total_size > 0 else 0
+            speed_bps = bitrate_kbps * 1000 / 8  # convert to bytes per second
+            speed_display = f"{speed_bps/1024:.1f} kB/s" if bitrate_kbps < 1048 else f"{speed_bps/(1024*1024):.1f} MB/s"
+            remaining = total_size - encoded_size
+            eta = remaining / (speed_bps + 0.001)
+
             cpu = psutil.cpu_percent()
             ram = psutil.virtual_memory()
 
             progress_text = (
                 "Encoding:\n\n"
                 f"{get_progress_bar(percentage)} {percentage:.1f}%\n"
-                f"Encoded: {format_size(current_size)} / {format_size(total_size)}\n"
+                f"Encoded: {format_size(encoded_size)} / {format_size(total_size)}\n"
                 f"Speed: {speed_display}\n"
                 f"ETA: {format_time(eta)} | Elapsed: {format_time(elapsed)}\n"
                 f"Total Time Taken: {format_time(eta + elapsed)}\n\n"
@@ -165,6 +176,7 @@ async def process_with_ffmpeg(bot, m: Message, input_path, status_msg):
                     logging.warning(f"Progress update error: {e}")
 
         stdout, stderr = await proc.communicate()
+
         if proc.returncode != 0:
             error_msg = stderr.decode().strip()
             error_lines = error_msg.split('\n')
