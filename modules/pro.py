@@ -6,60 +6,55 @@ from pyrogram.types import Message
 from pyrogram.enums import ChatAction
 from pyromod import listen  # For listening to user messages
 
-Set up logging configuration to capture only errors
-
+# Set up logging configuration to capture only errors
 logging.basicConfig(
-level=logging.ERROR,  # Only log errors (not debug or info)
-format='%(asctime)s - %(levelname)s - %(message)s',
-handlers=[
-logging.FileHandler('bot_errors.log'),  # Log errors to a file
-]
+    level=logging.ERROR,  # Only log errors (not debug or info)
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('bot_errors.log'),  # Log errors to a file
+    ]
 )
 
-Directory where files are stored and processed
-
+# Directory where files are stored and processed
 download_dir = "./downloads/pro"
 
-In-memory toggle for /test feature per chat
-
+# In-memory toggle for /test feature per chat
 test_feature = {}
 
 def ensure_dir(path):
-os.makedirs(path, exist_ok=True)
+    os.makedirs(path, exist_ok=True)
 
 async def send_message_in_parts(bot, chat_id, message):
-max_length = 4096
-for i in range(0, len(message), max_length):
-await bot.send_message(chat_id, message[i:i+max_length])
+    max_length = 4096
+    for i in range(0, len(message), max_length):
+        await bot.send_message(chat_id, message[i:i+max_length])
 
-Handler for /test toggle command
-
+# Handler for /test toggle command
 def register_test_toggle(bot: Client):
-@bot.on_message(filters.command("test") & filters.private)
-async def toggle_test(_, m: Message):
-cmd = m.text.strip().lower()
-if len(cmd.split()) == 1:
-# Show status
-status = test_feature.get(m.chat.id, True)
-text = f"/test is currently {'ON' if status else 'OFF'}."
-else:
-arg = cmd.split(maxsplit=1)[1]
-if arg in ("on", "off"):
-val = arg == "on"
-test_feature[m.chat.id] = val
-text = f"/test has been turned {'ON' if val else 'OFF'}."
-else:
-text = "Usage: /test on or /test off"
-await m.reply_text(text)
+    @bot.on_message(filters.command("test") & filters.private)
+    async def toggle_test(_, m: Message):
+        cmd = m.text.strip().lower()
+        if len(cmd.split()) == 1:
+            # Show status
+            status = test_feature.get(m.chat.id, True)
+            text = f"/test is currently {'ON' if status else 'OFF'}."
+        else:
+            arg = cmd.split(maxsplit=1)[1]
+            if arg in ("on", "off"):
+                val = arg == "on"
+                test_feature[m.chat.id] = val
+                text = f"/test has been turned {'ON' if val else 'OFF'}."
+            else:
+                text = "Usage: /test on or /test off"
+        await m.reply_text(text)
 
-Main handler function for the "pro" command
-
+# Main handler function for the "pro" command
 def pro_feature(bot: Client):
-# Register toggle
-register_test_toggle(bot)
+    # Register toggle
+    register_test_toggle(bot)
 
-@bot.on_message(filters.command("pro") & filters.private)  
-async def pro_handler(_, m: Message):  
+    @bot.on_message(filters.command("pro") & filters.private)
+    async def pro_handler(_, m: Message):  
     try:  
         # Default test flag on  
         if m.chat.id not in test_feature:  
