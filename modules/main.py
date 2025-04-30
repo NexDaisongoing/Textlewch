@@ -22,8 +22,7 @@ from pyrogram.errors.exceptions.bad_request_400 import StickerEmojiInvalid
 from pyrogram.types.messages_and_media import message
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from style import Ashu 
-from pro import pro_feature
-from pro import register_test_toggle
+from pro import register_handlers
 from fvr import register_ffmpeg_logs_command
 from sysinfo import register_system_info_handler
 
@@ -35,10 +34,9 @@ bot = Client(
     bot_token=BOT_TOKEN
 )
 
-pro_feature(bot)
+register_handlers(bot)
 register_ffmpeg_logs_command(bot)
 register_system_info_handler(bot)
-register_test_toggle(bot)
 
 # Define aiohttp routes
 routes = web.RouteTableDef()
