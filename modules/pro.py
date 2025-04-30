@@ -260,7 +260,7 @@ def register_handlers(bot: Client):
 
             # Show command if test mode is on
             if test_feature.get(m.chat.id, True):
-                await m.reply_text(f"FFmpeg command used:\n```\n{ffmpeg_cmd}\n```")
+                await m.reply_text(f"FFmpeg command used:\n```\n{ff_args}\n```")
 
             # Cleanup
             await status_msg.delete()
