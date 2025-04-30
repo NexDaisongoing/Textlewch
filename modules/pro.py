@@ -110,13 +110,33 @@ async def process_with_ffmpeg(bot, m: Message, input_path, status_msg):
         output_path = os.path.join(DOWNLOAD_DIR, f"{base_name}_processed.mkv")
 
         start_time = time.time()
+        
+        # Get input duration using ffprobe
+        probe_cmd = [
+            'ffprobe', 
+            '-v', 'error', 
+            '-show_entries', 'format=duration', 
+            '-of', 'default=noprint_wrappers=1:nokey=1', 
+            input_path
+        ]
+        
+        probe_process = await asyncio.create_subprocess_exec(
+            *probe_cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        
+        stdout, stderr = await probe_process.communicate()
+        total_duration = float(stdout.decode().strip())
         total_size = os.path.getsize(input_path)
+        
+        # Prepare FFmpeg command with more detailed progress
         ff_args = ffmpeg_cmd
-
         cmd = [
             'ffmpeg',
             '-hide_banner',
             '-y',
+            '-progress', 'pipe:1',  # Send progress to stdout
             '-i', input_path,
             *shlex.split(ff_args),
             output_path
@@ -128,58 +148,137 @@ async def process_with_ffmpeg(bot, m: Message, input_path, status_msg):
             stderr=asyncio.subprocess.PIPE
         )
 
-        encoded_size = 0
-        bitrate_kbps = 0
-
+        # Initialize progress variables
+        progress_data = {
+            'frame': 0,
+            'fps': 0,
+            'time': 0,
+            'bitrate': 0,
+            'speed': 0,
+            'progress': '',
+            'out_time_ms': 0,
+            'total_size': 0,
+            'dup_frames': 0,
+            'drop_frames': 0,
+        }
+        
+        # Create update task
+        last_update_time = 0
+        UPDATE_INTERVAL = 3  # Update message every 3 seconds
+        
+        async def read_stderr():
+            while True:
+                line = await proc.stderr.readline()
+                if not line:
+                    break
+                decoded_line = line.decode("utf-8", errors="ignore").strip()
+                # Just for debug logging
+                logging.debug(f"FFMPEG stderr: {decoded_line}")
+                
+        stderr_reader = asyncio.create_task(read_stderr())
+        
+        # Read progress output
         while True:
-            line = await proc.stderr.readline()
+            line = await proc.stdout.readline()
             if not line:
                 break
-
+                
             decoded_line = line.decode("utf-8", errors="ignore").strip()
-
-            # Extract encoded size
-            size_match = re.search(r"size=\s*(\d+)\s*kB", decoded_line)
-            if size_match:
-                encoded_size = int(size_match.group(1)) * 1024  # convert to bytes
-
-            # Extract bitrate
-            bitrate_match = re.search(r"bitrate=\s*([\d\.]+)\s*kbits/s", decoded_line)
-            if bitrate_match:
-                bitrate_kbps = float(bitrate_match.group(1))
-
-            # Progress calculations
-            elapsed = time.time() - start_time
-            percentage = (encoded_size / total_size) * 100 if total_size > 0 else 0
-            speed_bps = bitrate_kbps * 1000 / 8  # convert to bytes per second
-            speed_display = f"{speed_bps/1024:.1f} kB/s" if bitrate_kbps < 1048 else f"{speed_bps/(1024*1024):.1f} MB/s"
-            remaining = total_size - encoded_size
-            eta = remaining / (speed_bps + 0.001)
-
-            cpu = psutil.cpu_percent()
-            ram = psutil.virtual_memory()
-
-            progress_text = (
-                "Encoding:\n\n"
-                f"{get_progress_bar(percentage)} {percentage:.1f}%\n"
-                f"Encoded: {format_size(encoded_size)} / {format_size(total_size)}\n"
-                f"Speed: {speed_display}\n"
-                f"ETA: {format_time(eta)} | Elapsed: {format_time(elapsed)}\n"
-                f"Total Time Taken: {format_time(eta + elapsed)}\n\n"
-                f"CPU: {cpu}% | RAM: {format_size(ram.used)}/{format_size(ram.total)}\n\n"
-                f"<code>{ff_args}</code>"
-            )
-
-            try:
-                await status_msg.edit_text(progress_text)
-            except Exception as e:
-                if "Message is not modified" not in str(e):
-                    logging.warning(f"Progress update error: {e}")
-
-        stdout, stderr = await proc.communicate()
-
+            if not decoded_line:
+                continue
+                
+            # Parse progress information
+            if '=' in decoded_line:
+                key, value = decoded_line.split('=', 1)
+                key = key.strip()
+                value = value.strip()
+                
+                if key == 'frame':
+                    progress_data['frame'] = int(value)
+                elif key == 'fps':
+                    progress_data['fps'] = float(value)
+                elif key == 'bitrate':
+                    # Remove 'kbits/s' and convert to float
+                    if value != 'N/A':
+                        progress_data['bitrate'] = float(value.replace('kbits/s', '').strip())
+                elif key == 'total_size':
+                    progress_data['total_size'] = int(value)
+                elif key == 'out_time_ms':
+                    progress_data['out_time_ms'] = int(value)
+                elif key == 'out_time':
+                    # Parse timestamp like "00:00:05.24"
+                    time_parts = value.split(':')
+                    hours = int(time_parts[0])
+                    minutes = int(time_parts[1])
+                    seconds = float(time_parts[2])
+                    progress_data['time'] = hours * 3600 + minutes * 60 + seconds
+                elif key == 'speed':
+                    # Remove "x" and convert to float
+                    if value != 'N/A':
+                        progress_data['speed'] = float(value.replace('x', '').strip())
+                elif key == 'progress':
+                    progress_data['progress'] = value
+                elif key == 'dup_frames':
+                    progress_data['dup_frames'] = int(value)
+                elif key == 'drop_frames':
+                    progress_data['drop_frames'] = int(value)
+            
+            # Update status message at regular intervals
+            current_time = time.time()
+            if current_time - last_update_time >= UPDATE_INTERVAL:
+                last_update_time = current_time
+                
+                # Calculate progress percentage based on time
+                percentage = min(100, (progress_data['time'] / total_duration) * 100) if total_duration > 0 else 0
+                
+                # Calculate ETA
+                elapsed = current_time - start_time
+                if progress_data['speed'] > 0:
+                    eta = (total_duration - progress_data['time']) / progress_data['speed']
+                else:
+                    eta = (total_duration - progress_data['time']) * (elapsed / max(1, progress_data['time']))
+                
+                # Get system resources
+                cpu = psutil.cpu_percent()
+                ram = psutil.virtual_memory()
+                
+                # Format output size
+                output_size = progress_data['total_size']
+                speed_display = f"{progress_data['speed']:.2f}x"
+                bitrate_display = f"{progress_data['bitrate']:.1f} kbits/s" if progress_data['bitrate'] > 0 else "N/A"
+                
+                progress_text = (
+                    "Encoding:\n\n"
+                    f"{get_progress_bar(percentage)} {percentage:.1f}%\n"
+                    f"Time: {format_time(progress_data['time'])} / {format_time(total_duration)}\n"
+                    f"Frames: {progress_data['frame']} @ {progress_data['fps']:.1f} FPS\n"
+                    f"Output Size: {format_size(output_size)}\n"
+                    f"Bitrate: {bitrate_display} | Speed: {speed_display}\n"
+                    f"ETA: {format_time(eta)} | Elapsed: {format_time(elapsed)}\n"
+                    f"Duplicated Frames: {progress_data['dup_frames']} | Dropped Frames: {progress_data['drop_frames']}\n\n"
+                    f"CPU: {cpu}% | RAM: {format_size(ram.used)}/{format_size(ram.total)}\n\n"
+                    f"<code>{ff_args}</code>"
+                )
+                
+                try:
+                    await status_msg.edit_text(progress_text)
+                except Exception as e:
+                    if "Message is not modified" not in str(e):
+                        logging.warning(f"Progress update error: {e}")
+                
+                # Check if encoding is complete
+                if progress_data['progress'] == 'end':
+                    break
+        
+        # Cancel stderr reader task
+        stderr_reader.cancel()
+        
+        # Wait for process to complete
+        await proc.wait()
+        
         if proc.returncode != 0:
-            error_msg = stderr.decode().strip()
+            stderr_data = await proc.stderr.read()
+            error_msg = stderr_data.decode().strip()
             error_lines = error_msg.split('\n')
             relevant_error = '\n'.join(error_lines[-10:])
             await status_msg.edit_text(
@@ -188,11 +287,23 @@ async def process_with_ffmpeg(bot, m: Message, input_path, status_msg):
                 f"Error: {relevant_error}"
             )
             return None
-
+        
+        # Final success message
+        final_size = os.path.getsize(output_path)
+        compression_ratio = (total_size / final_size) if final_size > 0 else 0
+        
+        await status_msg.edit_text(
+            f"✅ FFmpeg Processing Complete!\n\n"
+            f"Original Size: {format_size(total_size)}\n"
+            f"Final Size: {format_size(final_size)}\n"
+            f"Compression Ratio: {compression_ratio:.2f}x\n"
+            f"Total Time: {format_time(time.time() - start_time)}"
+        )
+        
         return output_path
-
     except Exception as e:
-        await status_msg.edit_text(f"❌ Processing Error: {str(e)}")
+        logging.error(f"FFmpeg processing error: {str(e)}")
+        await status_msg.edit_text(f"❌ Error: {str(e)}")
         return None
 
 async def send_large_message(bot, chat_id, text):
