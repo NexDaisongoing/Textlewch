@@ -1,62 +1,64 @@
 import os
 import asyncio
 import logging
-from pyrogram import Client, filters
+from pyrogram import filters, Client
 from pyrogram.types import Message
 from pyrogram.enums import ChatAction
-from pyromod import listen  # For interactive prompts
+from pyromod import listen  # For listening to user messages
 
-# Configure logger to record only errors
+Set up logging configuration to capture only errors
+
 logging.basicConfig(
-    level=logging.ERROR,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[logging.FileHandler('bot_errors.log')]
+level=logging.ERROR,  # Only log errors (not debug or info)
+format='%(asctime)s - %(levelname)s - %(message)s',
+handlers=[
+logging.FileHandler('bot_errors.log'),  # Log errors to a file
+]
 )
 
-# Directory for downloads and outputs
-download_dir = os.path.join('.', 'downloads', 'pro')
-# In-memory toggle for the /test feature per chat
-feature_toggles = {}
+Directory where files are stored and processed
 
+download_dir = "./downloads/pro"
 
-def ensure_dir(path: str) -> None:
-    """
-    Ensure a directory exists, creating it if necessary.
-    """
-    os.makedirs(path, exist_ok=True)
+In-memory toggle for /test feature per chat
 
+test_feature = {}
 
-async def send_long_message(bot: Client, chat_id: int, text: str) -> None:
-    """
-    Splits long messages into chunks under Telegram limits.
-    """
-    max_len = 4096
-    for i in range(0, len(text), max_len):
-        await bot.send_message(chat_id, text[i:i + max_len])
+def ensure_dir(path):
+os.makedirs(path, exist_ok=True)
 
+async def send_message_in_parts(bot, chat_id, message):
+max_length = 4096
+for i in range(0, len(message), max_length):
+await bot.send_message(chat_id, message[i:i+max_length])
 
-def register_test_toggle(bot: Client) -> None:
-    """
-    Adds a /test command to turn the verbose feedback on/off.
-    """
-    @bot.on_message(filters.command("test") & filters.private)
-    async def toggle(_, msg: Message):
-        args = msg.text.split()
-        current = feature_toggles.get(msg.chat.id, True)
+Handler for /test toggle command
 
-        if len(args) == 1:
-            status = 'ON' if current else 'OFF'
-            await msg.reply_text(f"/test is {status}.")
-        else:
-            choice = args[1].lower()
-            if choice in ('on', 'off'):
-                feature_toggles[msg.chat.id] = (choice == 'on')
-                await msg.reply_text(f"/test turned {choice.upper()}.")
-            else:
-                await msg.reply_text("Usage: /test on|off")
+def register_test_toggle(bot: Client):
+@bot.on_message(filters.command("test") & filters.private)
+async def toggle_test(_, m: Message):
+cmd = m.text.strip().lower()
+if len(cmd.split()) == 1:
+# Show status
+status = test_feature.get(m.chat.id, True)
+text = f"/test is currently {'ON' if status else 'OFF'}."
+else:
+arg = cmd.split(maxsplit=1)[1]
+if arg in ("on", "off"):
+val = arg == "on"
+test_feature[m.chat.id] = val
+text = f"/test has been turned {'ON' if val else 'OFF'}."
+else:
+text = "Usage: /test on or /test off"
+await m.reply_text(text)
 
+Main handler function for the "pro" command
 
+def pro_feature(bot: Client):
+# Register toggle
+register_test_toggle(bot)
 
+@bot.on_message(filters.command("pro") & filters.private)  
 async def pro_handler(_, m: Message):  
     try:  
         # Default test flag on  
