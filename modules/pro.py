@@ -1,6 +1,8 @@
 import os
 import asyncio
 import logging
+import time
+import psutil 
 from pyrogram import filters, Client
 from pyrogram.types import Message
 from pyrogram.enums import ChatAction
@@ -95,7 +97,70 @@ def pro_feature(bot: Client):
                 f"Please wait..."
             )
 
-            local_in = await file_msg.download(file_name=file_name)
+            # Remove this old line:
+# local_in = await file_msg.download(file_name=file_name)
+
+# Add this instead:
+def format_size(bytes):
+    for unit in ['B', 'KB', 'MB', 'GB']:
+        if bytes < 1024:
+            return f"{bytes:.2f} {unit}"
+        bytes /= 1024
+    return f"{bytes:.2f} TB"
+
+def format_time(seconds):
+    minutes, seconds = divmod(int(seconds), 60)
+    hours, minutes = divmod(minutes, 60)
+    if hours:
+        return f"{hours}h {minutes}m {seconds}s"
+    return f"{minutes}m {seconds}s"
+
+def get_progress_bar(percentage, length=20):
+    filled = int(percentage/100 * length)
+    return f"[{'█' * filled}{'░' * (length - filled)}]"
+
+async def download_with_progress(bot, message, file_id, file_name, status_message):
+    start_time = time.time()
+    last_update = 0
+    
+    def progress(current, total):
+        nonlocal last_update
+        now = time.time()
+        if now - last_update < 1 and current != total:  # Update every 1 second
+            return
+        
+        percentage = (current / total) * 100
+        elapsed = now - start_time
+        speed = current / elapsed if elapsed > 0 else 0
+        eta = (total - current) / speed if speed > 0 else 0
+        
+        cpu = psutil.cpu_percent()
+        ram = psutil.virtual_memory()
+        
+        progress_text = (
+            f"🔄 **FFmpeg Processing Status**\n\n"
+            f"📥 Downloading File\n\n"
+            f"{get_progress_bar(percentage)} {percentage:.1f}%\n"
+            f"Downloaded: {format_size(current)} / {format_size(total)}\n"
+            f"Speed: {format_size(speed)}/s\n"
+            f"ETA: {format_time(eta)} | Elapsed: {format_time(elapsed)}\n"
+            f"Total Time: {format_time(eta + elapsed)}\n\n"
+            f"CPU: {cpu}% | RAM: {format_size(ram.used)}/{format_size(ram.total)}"
+        )
+        
+        asyncio.create_task(status_message.edit_text(progress_text))
+        last_update = now
+    
+    file_path = await bot.download_media(
+        message=file_id,
+        file_name=file_name,
+        progress=progress
+    )
+    
+    return file_path
+
+# Then replace your download line with:
+local_in = await download_with_progress(bot, m, file_msg, file_name, status_message)
 
             # Update status to prompt for FFmpeg args
             await status_message.edit_text(
