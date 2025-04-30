@@ -94,7 +94,7 @@ async def process_with_ffmpeg(bot, m: Message, input_path, status_msg):
             "Example: `-vf scale=1280:720 -c:v libx264 -crf 23`\n"
             "Type 'help' for examples"
         )
-        
+
         cmd_msg = await bot.listen(m.chat.id)
         ffmpeg_cmd = cmd_msg.text.strip()
         await cmd_msg.delete()
@@ -116,12 +116,12 @@ async def process_with_ffmpeg(bot, m: Message, input_path, status_msg):
         output_path = os.path.join(DOWNLOAD_DIR, f"{base_name}_processed.mkv")
 
         # Start processing
-        await status_msg.edit_text(
-            f"⚙️ Processing with FFmpeg...\n\n"
-            f"Command: `{ffmpeg_cmd}`"
-        )
+        start_time = time.time()
+        last_update = 0
+        total_size = os.path.getsize(input_path)
+        ff_args = ffmpeg_cmd  # Store the command for display
 
-        # Build and run FFmpeg command
+        # Build FFmpeg command
         cmd = f"ffmpeg -i '{input_path}' {ffmpeg_cmd} '{output_path}'"
         proc = await asyncio.create_subprocess_shell(
             cmd,
@@ -129,7 +129,56 @@ async def process_with_ffmpeg(bot, m: Message, input_path, status_msg):
             stderr=asyncio.subprocess.PIPE
         )
 
-        # Wait for completion
+        # Progress tracking
+        while True:
+            await asyncio.sleep(1)  # Update every second
+            
+            # Check process status
+            if proc.returncode is not None:
+                break
+                
+            # Get current file size
+            try:
+                current_size = os.path.getsize(output_path) if os.path.exists(output_path) else 0
+            except:
+                current_size = 0
+                
+            # Calculate progress
+            elapsed = time.time() - start_time
+            percentage = (current_size / total_size) * 100 if total_size > 0 else 0
+            
+            # Calculate speed (using input size as reference)
+            speed = current_size / (elapsed + 0.001)
+            speed_display = f"{speed/1024:.1f} kB/s" if speed < 1024*1024 else f"{speed/(1024*1024):.1f} MB/s"
+            
+            # Calculate ETA
+            remaining = total_size - current_size
+            eta = remaining / (speed + 0.001)
+            
+            # Get system stats
+            cpu = psutil.cpu_percent()
+            ram = psutil.virtual_memory()
+            
+            # Prepare progress message
+            progress_text = (
+                "Encoding:\n\n"
+                f"{get_progress_bar(percentage)} {percentage:.1f}%\n"
+                f"Encoded: {format_size(current_size)} / {format_size(total_size)}\n"
+                f"Speed: {speed_display}\n"
+                f"ETA: {format_time(eta)} | Elapsed: {format_time(elapsed)}\n"
+                f"Total Time Taken: {format_time(eta + elapsed)}\n\n"
+                f"CPU: {cpu}% | RAM: {format_size(ram.used)}/{format_size(ram.total)}\n\n"
+                f"<code>{ff_args}</code>"
+            )
+            
+            try:
+                await status_msg.edit_text(progress_text)
+            except MessageNotModified:
+                pass
+            except Exception as e:
+                logging.error(f"Progress update error: {e}")
+
+        # Check result
         stdout, stderr = await proc.communicate()
         if proc.returncode != 0:
             error_msg = stderr.decode().strip()
