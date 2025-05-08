@@ -89,28 +89,6 @@ async def download_with_progress(bot, chat_id, file_msg, file_path, status_msg):
 
 async def process_with_ffmpeg(bot, m: Message, input_path, status_msg):
     try:
-        await status_msg.edit_text("Starting FFmpeg Process!\n\nSend your FFmpeg command:")
-        cmd_msg = await bot.listen(m.chat.id)
-        ffmpeg_cmd = cmd_msg.text.strip()
-        await cmd_msg.delete()
-
-        if ffmpeg_cmd.lower() == "help":
-            examples = (
-                "Example commands:\n"
-                "`-vf scale=1280:720 -c:v libx264 -crf 23`\n"
-                "`-c:v libx265 -preset fast -crf 28`\n"
-                "`-c:v copy -c:a copy` (no re-encoding)"
-            )
-            await status_msg.edit_text(examples)
-            cmd_msg = await bot.listen(m.chat.id)
-            ffmpeg_cmd = cmd_msg.text.strip()
-            await cmd_msg.delete()
-
-        base_name = os.path.splitext(os.path.basename(input_path))[0]
-        output_path = os.path.join(DOWNLOAD_DIR, f"{base_name}_processed.mkv")
-
-        start_time = time.time()
-        
         # Get input duration and info using ffprobe
         probe_cmd = [
             'ffprobe', 
@@ -195,22 +173,10 @@ async def process_with_ffmpeg(bot, m: Message, input_path, status_msg):
         
         await status_msg.edit_text(input_info)
         
-        # Get user command again with input info context
+        # Get user command with input info context
         cmd_msg = await bot.listen(m.chat.id)
         ffmpeg_cmd = cmd_msg.text.strip()
         await cmd_msg.delete()
-        
-        if ffmpeg_cmd.lower() == "help":
-            examples = (
-                "Example commands:\n"
-                "`-vf scale=1280:720 -c:v libx264 -crf 23`\n"
-                "`-c:v libx265 -preset fast -crf 28`\n"
-                "`-c:v copy -c:a copy` (no re-encoding)"
-            )
-            await status_msg.edit_text(examples)
-            cmd_msg = await bot.listen(m.chat.id)
-            ffmpeg_cmd = cmd_msg.text.strip()
-            await cmd_msg.delete()
         
         # Prepare and validate FFmpeg command
         ff_args = ffmpeg_cmd
@@ -218,21 +184,6 @@ async def process_with_ffmpeg(bot, m: Message, input_path, status_msg):
         # Identify codec from command
         codec_match = re.search(r'-c:v\s+(\w+)', ff_args)
         target_codec = codec_match.group(1) if codec_match else "unknown"
-        
-        # Check for common errors
-        if "x265-params" in ff_args and "libx264" in ff_args:
-            await status_msg.edit_text(
-                "⚠️ Error: You're using x265-params with libx264 codec.\n"
-                "Please use libx265 instead or remove x265-params."
-            )
-            return None
-            
-        if "x264-params" in ff_args and "libx265" in ff_args:
-            await status_msg.edit_text(
-                "⚠️ Error: You're using x264-params with libx265 codec.\n"
-                "Please use libx264 instead or remove x264-params."
-            )
-            return None
         
         # Split the command correctly, handling quotes properly
         try:
@@ -254,6 +205,9 @@ async def process_with_ffmpeg(bot, m: Message, input_path, status_msg):
 
         # Log the command for debugging
         logging.info(f"Running FFmpeg command: {' '.join(cmd)}")
+        
+        base_name = os.path.splitext(os.path.basename(input_path))[0]
+        output_path = os.path.join(DOWNLOAD_DIR, f"{base_name}_processed.mkv")
         
         # Notify user that processing is starting
         await status_msg.edit_text(
@@ -427,32 +381,6 @@ async def process_with_ffmpeg(bot, m: Message, input_path, status_msg):
                 filtered_errors = error_lines[-10:]
                 
             relevant_error = '\n'.join(filtered_errors)
-            
-            # Check for specific x265 parameter errors
-            if "x265-params" in ff_args and "-c:v libx264" in ' '.join(cmd):
-                relevant_error += "\n\nPossible issue: You're using x265-params with libx264 codec. Use libx265 instead."
-            elif "x264-params" in ff_args and "-c:v libx265" in ' '.join(cmd):
-                relevant_error += "\n\nPossible issue: You're using x264-params with libx265 codec. Use libx264 instead."
-                
-            # Check for mismatched quotes in x265-params
-            if "x265-params" in ff_args:
-                x265_params_match = re.search(r'-x265-params\s+([^\s]+)', ff_args)
-                if x265_params_match:
-                    x265_params = x265_params_match.group(1)
-                    if x265_params.count('"') % 2 != 0 or x265_params.count("'") % 2 != 0:
-                        relevant_error += "\n\nPossible issue: Mismatched quotes in x265-params. Try: -x265-params \"your:params:here\""
-            
-            # Format suggested fix for x265 parameters
-            if "x265-params" in ff_args and "libx265" in ff_args:
-                # Extract the parameters
-                params_match = re.search(r'-x265-params\s+([^-]+)', ff_args)
-                if params_match:
-                    params = params_match.group(1).strip()
-                    # If params don't have quotes, suggest adding them
-                    if not (params.startswith('"') and params.endswith('"')) and not (params.startswith("'") and params.endswith("'")):
-                        proper_params = f'-x265-params "{params}"'
-                        original_params = f'-x265-params {params}'
-                        relevant_error += f"\n\nTry using quoted parameters:\nChange: {original_params}\nTo: {proper_params}"
             
             # Check for missing dependencies
             if "encoder not found" in error_msg:
