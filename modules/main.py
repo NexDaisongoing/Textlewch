@@ -25,7 +25,7 @@ from style import Ashu
 from pro import pro_feature
 from fvr import register_ffmpeg_logs_command
 from sysinfo import register_system_info_handler
-from batch import batch_worker
+from batch import batch_feature
 
 # Initialize the bot
 bot = Client(
