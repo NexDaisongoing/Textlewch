@@ -26,6 +26,7 @@ from pro import pro_feature
 from fvr import register_ffmpeg_logs_command
 from sysinfo import register_system_info_handler
 from batch import batch_feature
+from batch2 import batch_feature2
 
 # Initialize the bot
 bot = Client(
@@ -39,6 +40,7 @@ pro_feature(bot)
 register_ffmpeg_logs_command(bot)
 register_system_info_handler(bot)
 batch_feature(bot)
+batch_feature2(bot)
 # Define aiohttp routes
 routes = web.RouteTableDef()
 
