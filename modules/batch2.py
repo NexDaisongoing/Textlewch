@@ -115,7 +115,7 @@ async def process_batch(bot: Client, chat_id: int):
     batch_procs.pop(chat_id, None)
 
 # ——— Feature Registration ———
-def batch_feature(bot: Client):
+def batch_feature2(bot: Client):
     @bot.on_message(filters.command("batch2") & filters.private)
     async def start_batch(_, m: Message):
         cid = m.chat.id
