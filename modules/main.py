@@ -38,7 +38,7 @@ bot = Client(
 pro_feature(bot)
 register_ffmpeg_logs_command(bot)
 register_system_info_handler(bot)
-batch_worker(bot)
+batch_feature(bot)
 # Define aiohttp routes
 routes = web.RouteTableDef()
 
