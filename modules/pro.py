@@ -90,8 +90,7 @@ async def download_with_progress(bot, chat_id, file_msg, file_path, status_msg):
 async def process_with_ffmpeg(bot, m: Message, input_path, status_msg):
     try:
         import json, re, shlex, os, time, logging, psutil
-        from utils import format_size, format_time, get_progress_bar  # Assuming these are defined
-
+       
         # Start time for ETA and elapsed
         start_time = time.time()
 
