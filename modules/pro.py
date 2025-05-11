@@ -159,6 +159,8 @@ async def process_with_ffmpeg(bot, m: Message, input_path, status_msg):
             f"Command: <code>{ffmpeg_cmd}</code>"
         )
 
+        start_time = time.time()
+
         proc = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
 
         progress_data = {'frame': 0, 'fps': 0, 'time': 0, 'bitrate': 0, 'speed': 0, 'size_kb': 0, 'q': 0, 'dup': 0, 'drop': 0}
