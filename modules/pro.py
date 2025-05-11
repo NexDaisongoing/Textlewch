@@ -237,8 +237,9 @@ async def process_with_ffmpeg(bot, m: Message, input_path, status_msg):
         if proc.returncode != 0:
             error_lines = stderr.decode().splitlines()
             filtered_errors = [line for line in error_lines if any(x in line.lower() for x in ['error', 'invalid', 'unable'])]
-            await status_msg.edit_text(f"❌ FFmpeg Failed\n\n{'\n'.join(filtered_errors[-10:])}\n\n<code>{ffmpeg_cmd}</code>")
-            return
+            filtered_error_text = '\n'.join(filtered_errors[-10:])
+
+            await status_msg.edit_text(f"❌ FFmpeg Failed\n\n{filtered_error_text}\n\n<code>{ffmpeg_cmd}</code>")
 
         final_size = os.path.getsize(output_path) if os.path.exists(output_path) else 0
         compression_ratio = total_size / final_size if final_size else 0
