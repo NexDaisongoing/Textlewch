@@ -89,79 +89,48 @@ async def download_with_progress(bot, chat_id, file_msg, file_path, status_msg):
 
 async def process_with_ffmpeg(bot, m: Message, input_path, status_msg):
     try:
-        # Get input duration and info using ffprobe
+        import json, re, shlex, os, time, logging, psutil
+        from utils import format_size, format_time, get_progress_bar  # Assuming these are defined
+
+        # Start time for ETA and elapsed
+        start_time = time.time()
+
+        # FFprobe to get video info
         probe_cmd = [
-            'ffprobe', 
-            '-v', 'error', 
-            '-select_streams', 'v:0',  # Select video stream
+            'ffprobe',
+            '-v', 'error',
+            '-select_streams', 'v:0',
             '-show_entries', 'stream=width,height,r_frame_rate,avg_frame_rate,duration,bit_rate,nb_frames,codec_name:format=duration,bit_rate,size',
-            '-of', 'json', 
+            '-of', 'json',
             input_path
         ]
-        
-        probe_process = await asyncio.create_subprocess_exec(
-            *probe_cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
-        )
-        
+        probe_process = await asyncio.create_subprocess_exec(*probe_cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
         stdout, stderr = await probe_process.communicate()
-        
-        # Handle possible ffprobe errors
         if probe_process.returncode != 0:
-            await status_msg.edit_text(f"❌ Error getting video info: {stderr.decode().strip()}")
-            return None
-        
-        try:
-            import json
-            probe_data = json.loads(stdout.decode())
-            
-            # Extract video information
-            stream_info = probe_data.get('streams', [{}])[0]
-            format_info = probe_data.get('format', {})
-            
-            # Get duration (try multiple sources)
-            total_duration = float(stream_info.get('duration') or format_info.get('duration', 0))
-            
-            # Get frame rate
-            frame_rate = stream_info.get('r_frame_rate', '25/1')
-            if '/' in frame_rate:
-                num, den = map(int, frame_rate.split('/'))
-                frame_rate = num / den if den != 0 else 25
-            else:
-                frame_rate = float(frame_rate) if frame_rate else 25
-                
-            # Get total frames
-            total_frames = int(stream_info.get('nb_frames', 0))
-            if not total_frames and total_duration > 0:
-                total_frames = int(total_duration * frame_rate)
-                
-            # Get resolution
-            width = stream_info.get('width', 0)
-            height = stream_info.get('height', 0)
-            
-            # Get bitrate
-            input_bitrate = int(stream_info.get('bit_rate') or format_info.get('bit_rate', 0))
-            
-            # Get codec
-            input_codec = stream_info.get('codec_name', 'unknown')
-            
-        except Exception as e:
-            logging.error(f"Error parsing probe data: {str(e)}")
-            total_duration = 0
-            total_frames = 0
-            frame_rate = 25
-            width = 0
-            height = 0
-            input_bitrate = 0
-            input_codec = 'unknown'
-        
-        # Get file size
+            await status_msg.edit_text(f"❌ Error getting video info:\n{stderr.decode().strip()}")
+            return
+
+        probe_data = json.loads(stdout.decode())
+        stream_info = probe_data.get("streams", [{}])[0]
+        format_info = probe_data.get("format", {})
+
+        total_duration = float(stream_info.get("duration") or format_info.get("duration") or 0)
+        frame_rate = stream_info.get("r_frame_rate", "25/1")
+        if "/" in frame_rate:
+            num, den = map(int, frame_rate.split("/"))
+            frame_rate = num / den if den != 0 else 25
+        else:
+            frame_rate = float(frame_rate) if frame_rate else 25
+
+        total_frames = int(stream_info.get("nb_frames", 0) or total_duration * frame_rate)
+        width = stream_info.get("width", 0)
+        height = stream_info.get("height", 0)
+        input_bitrate = int(stream_info.get("bit_rate") or format_info.get("bit_rate") or 0)
+        input_codec = stream_info.get("codec_name", "unknown")
         total_size = os.path.getsize(input_path)
-        
-        # Display input file information
-        input_info = (
-            "📂 Input File Information:\n"
+
+        await status_msg.edit_text(
+            f"📂 Input File Info:\n"
             f"▫️ Size: {format_size(total_size)}\n"
             f"▫️ Duration: {format_time(total_duration)}\n"
             f"▫️ Resolution: {width}x{height}\n"
@@ -170,304 +139,125 @@ async def process_with_ffmpeg(bot, m: Message, input_path, status_msg):
             f"▫️ Framerate: {frame_rate:.3f} fps\n\n"
             "⚙️ Send your FFmpeg command:"
         )
-        
-        await status_msg.edit_text(input_info)
-        
-        # Get user command with input info context
+
         cmd_msg = await bot.listen(m.chat.id)
         ffmpeg_cmd = cmd_msg.text.strip()
         await cmd_msg.delete()
-        
-        # Prepare and validate FFmpeg command
-        ff_args = ffmpeg_cmd
-        
-        # Identify codec from command
-        codec_match = re.search(r'-c:v\s+(\w+)', ff_args)
-        target_codec = codec_match.group(1) if codec_match else "unknown"
-        
-        # Split the command correctly, handling quotes properly
-        try:
-            parsed_args = shlex.split(ff_args)
-        except Exception as e:
-            await status_msg.edit_text(f"❌ Error parsing command: {str(e)}")
-            return None
-            
-        cmd = [
-            'ffmpeg',
-            '-hide_banner',
-            '-loglevel', 'info',  # Ensure we get enough info for progress
-            '-stats',             # Show progress statistics
-            '-y',
-            '-i', input_path,
-            *parsed_args,
-            output_path
-        ]
 
-        # Log the command for debugging
-        logging.info(f"Running FFmpeg command: {' '.join(cmd)}")
-        
+        parsed_args = shlex.split(ffmpeg_cmd)
+        codec_match = re.search(r'-c:v\s+(\w+)', ffmpeg_cmd)
+        target_codec = codec_match.group(1) if codec_match else "unknown"
+
         base_name = os.path.splitext(os.path.basename(input_path))[0]
         output_path = os.path.join(DOWNLOAD_DIR, f"{base_name}_processed.mkv")
-        
-        # Notify user that processing is starting
+
+        cmd = ['ffmpeg', '-hide_banner', '-loglevel', 'info', '-stats', '-y', '-i', input_path, *parsed_args, output_path]
+
         await status_msg.edit_text(
             f"🎬 Starting FFmpeg Processing\n\n"
             f"Input: {os.path.basename(input_path)}\n"
             f"Target Codec: {target_codec}\n"
-            f"Command: <code>{ff_args}</code>"
-        )
-        
-        # Start FFmpeg process
-        proc = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
+            f"Command: <code>{ffmpeg_cmd}</code>"
         )
 
-        # Initialize progress variables
-        progress_data = {
-            'frame': 0,
-            'fps': 0,
-            'time': 0,
-            'bitrate': 0,
-            'speed': 0,
-            'size_kb': 0,
-            'q': 0,  # Quality factor
-            'dup': 0,  # Duplicate frames
-            'drop': 0,  # Dropped frames
-        }
-        
-        # Create update task
+        proc = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+
+        progress_data = {'frame': 0, 'fps': 0, 'time': 0, 'bitrate': 0, 'speed': 0, 'size_kb': 0, 'q': 0, 'dup': 0, 'drop': 0}
         last_update_time = 0
-        UPDATE_INTERVAL = 2  # Update message every 2 seconds
-        
-        # Read stderr for progress updates
+        UPDATE_INTERVAL = 2
+
         while True:
             line = await proc.stderr.readline()
             if not line:
                 break
-                
-            decoded_line = line.decode("utf-8", errors="ignore").strip()
-            if not decoded_line:
+
+            line = line.decode("utf-8", errors="ignore").strip()
+            if not line or not line.startswith("frame="):
                 continue
-            
-            # Log for debugging
-            logging.debug(f"FFMPEG: {decoded_line}")
-                
-            # Parse progress information from stderr
-            # Extract frame
-            frame_match = re.search(r"frame=\s*(\d+)", decoded_line)
-            if frame_match:
-                progress_data['frame'] = int(frame_match.group(1))
-            
-            # Extract fps
-            fps_match = re.search(r"fps=\s*([\d\.]+)", decoded_line)
-            if fps_match and fps_match.group(1) != "0.0":
-                progress_data['fps'] = float(fps_match.group(1))
-            
-            # Extract time
-            time_match = re.search(r"time=\s*(\d+):(\d+):(\d+\.\d+)", decoded_line)
-            if time_match:
-                hours = int(time_match.group(1))
-                minutes = int(time_match.group(2))
-                seconds = float(time_match.group(3))
-                progress_data['time'] = hours * 3600 + minutes * 60 + seconds
-            
-            # Extract bitrate
-            bitrate_match = re.search(r"bitrate=\s*([\d\.]+)\s*kbits/s", decoded_line)
-            if bitrate_match and bitrate_match.group(1) != "N/A":
-                progress_data['bitrate'] = float(bitrate_match.group(1))
-            
-            # Extract speed
-            speed_match = re.search(r"speed=\s*([\d\.]+)x", decoded_line)
-            if speed_match:
-                progress_data['speed'] = float(speed_match.group(1))
-            
-            # Extract size
-            size_match = re.search(r"size=\s*(\d+)kB", decoded_line)
-            if size_match:
-                progress_data['size_kb'] = int(size_match.group(1))
-                
-            # Extract quality factor (q)
-            q_match = re.search(r"q=\s*([\d\.]+)", decoded_line)
-            if q_match:
-                progress_data['q'] = float(q_match.group(1))
-                
-            # Extract duplicate frames
-            dup_match = re.search(r"dup=\s*(\d+)", decoded_line)
-            if dup_match:
-                progress_data['dup'] = int(dup_match.group(1))
-                
-            # Extract dropped frames
-            drop_match = re.search(r"drop=\s*(\d+)", decoded_line)
-            if drop_match:
-                progress_data['drop'] = int(drop_match.group(1))
-            
-            # Update status message at regular intervals
+
+            for key, pattern in {
+                'frame': r"frame=\s*(\d+)",
+                'fps': r"fps=\s*([\d\.]+)",
+                'time': r"time=\s*(\d+):(\d+):(\d+\.\d+)",
+                'bitrate': r"bitrate=\s*([\d\.]+)\s*kbits/s",
+                'speed': r"speed=\s*([\d\.]+)x",
+                'size_kb': r"size=\s*(\d+)kB",
+                'q': r"q=\s*([\d\.]+)",
+                'dup': r"dup=\s*(\d+)",
+                'drop': r"drop=\s*(\d+)"
+            }.items():
+                if key == "time":
+                    match = re.search(pattern, line)
+                    if match:
+                        h, m, s = map(float, match.groups())
+                        progress_data["time"] = int(h * 3600 + m * 60 + s)
+                else:
+                    match = re.search(pattern, line)
+                    if match:
+                        progress_data[key] = float(match.group(1)) if "." in match.group(1) else int(match.group(1))
+
             current_time = time.time()
             if current_time - last_update_time >= UPDATE_INTERVAL and progress_data['time'] > 0:
                 last_update_time = current_time
-                
-                # Calculate progress percentage based on time
-                percentage = min(100, (progress_data['time'] / total_duration) * 100) if total_duration > 0 else 0
-                
-                # Calculate ETA
+                percent = (progress_data['time'] / total_duration) * 100 if total_duration else 0
                 elapsed = current_time - start_time
-                if progress_data['speed'] > 0:
-                    eta = (total_duration - progress_data['time']) / progress_data['speed']
-                else:
-                    remaining_time = total_duration - progress_data['time']
-                    eta = remaining_time * (elapsed / max(0.1, progress_data['time']))
-                
-                # Get system resources
+                eta = ((total_duration - progress_data['time']) / progress_data['speed']) if progress_data['speed'] else 0
+                output_size = progress_data['size_kb'] * 1024
+                compression_ratio = total_size / output_size if output_size else 1
+                est_final_size = output_size / (progress_data['time'] / total_duration) if progress_data['time'] else 0
+
                 cpu = psutil.cpu_percent()
                 ram = psutil.virtual_memory()
-                
-                # Format output size
-                output_size = progress_data['size_kb'] * 1024  # Convert KB to bytes
-                speed_display = f"{progress_data['speed']:.2f}x" if progress_data['speed'] > 0 else "N/A"
-                bitrate_display = f"{progress_data['bitrate']:.1f} kbits/s" if progress_data['bitrate'] > 0 else "N/A"
-                
-                # Calculate compression ratio so far
-                compression_ratio = total_size / (output_size if output_size > 0 else total_size)
-                
-                # Calculate estimated final size
-                est_final_size = output_size / (progress_data['time'] / total_duration) if progress_data['time'] > 0 else 0
-                
-                progress_text = (
-                    "🔄 Encoding Progress:\n\n"
-                    f"{get_progress_bar(percentage)} {percentage:.1f}%\n"
+
+                text = (
+                    f"🔄 Encoding Progress:\n\n"
+                    f"{get_progress_bar(percent)} {percent:.1f}%\n"
                     f"⏱️ Time: {format_time(progress_data['time'])} / {format_time(total_duration)}\n"
                     f"🎞️ Frames: {progress_data['frame']} @ {progress_data['fps']:.1f} FPS\n"
-                    f"📊 Quality: q={progress_data['q']:.1f}\n"
+                    f"📊 Quality: q={progress_data['q']}\n"
                     f"📦 Size: {format_size(output_size)} (Est. Final: {format_size(est_final_size)})\n"
                     f"🔄 Compression: {compression_ratio:.2f}x\n"
-                    f"📈 Bitrate: {bitrate_display} | ⚡ Speed: {speed_display}\n"
+                    f"📈 Bitrate: {progress_data['bitrate']} kbps | ⚡ Speed: {progress_data['speed']}x\n"
                     f"⏳ ETA: {format_time(eta)} | ⌛ Elapsed: {format_time(elapsed)}\n"
                 )
-                
-                # Add duplicate/drop frames if available
+
                 if progress_data['dup'] > 0 or progress_data['drop'] > 0:
-                    progress_text += f"🔄 Dup: {progress_data['dup']} | 🗑️ Drop: {progress_data['drop']}\n"
-                
-                # Add system info and command
-                progress_text += (
-                    f"\n🖥️ CPU: {cpu}% | 🧠 RAM: {format_size(ram.used)}/{format_size(ram.total)}\n\n"
-                    f"<code>{ff_args}</code>"
-                )
-                
+                    text += f"🔄 Dup: {progress_data['dup']} | 🗑️ Drop: {progress_data['drop']}\n"
+
+                text += f"\n🖥️ CPU: {cpu}% | 🧠 RAM: {format_size(ram.used)}/{format_size(ram.total)}\n\n<code>{ffmpeg_cmd}</code>"
+
                 try:
-                    await status_msg.edit_text(progress_text)
+                    await status_msg.edit_text(text)
                 except Exception as e:
                     if "Message is not modified" not in str(e):
-                        logging.warning(f"Progress update error: {e}")
-        
-        # Wait for process to complete
+                        logging.warning(f"Edit error: {e}")
+
         stdout, stderr = await proc.communicate()
-        
+
         if proc.returncode != 0:
-            error_msg = stderr.decode("utf-8", errors="ignore").strip()
-            error_lines = error_msg.split('\n')
-            
-            # Filter for meaningful error messages
-            filtered_errors = []
-            for line in error_lines:
-                lower_line = line.lower()
-                if "error" in lower_line or "invalid" in lower_line or "unable" in lower_line or "not found" in lower_line:
-                    filtered_errors.append(line)
-            
-            # If no specific error lines found, take the last few lines
-            if not filtered_errors:
-                filtered_errors = error_lines[-10:]
-                
-            relevant_error = '\n'.join(filtered_errors)
-            
-            # Check for missing dependencies
-            if "encoder not found" in error_msg:
-                if "libx265" in error_msg:
-                    relevant_error += "\n\nPossible issue: The libx265 encoder is not available in this FFmpeg build."
-                elif "libx264" in error_msg:
-                    relevant_error += "\n\nPossible issue: The libx264 encoder is not available in this FFmpeg build."
-                else:
-                    relevant_error += "\n\nPossible issue: The requested encoder is not available in this FFmpeg build."
-            
-            await status_msg.edit_text(
-                f"❌ FFmpeg Processing Failed\n\n"
-                f"Error: {relevant_error}\n\n"
-                f"Command: <code>{ff_args}</code>"
-            )
-            return None
-        
-        # Check if output file exists and has size
-        if not os.path.exists(output_path) or os.path.getsize(output_path) == 0:
-            await status_msg.edit_text(
-                f"❌ FFmpeg Processing Failed\n\n"
-                f"Output file is missing or empty. Check FFmpeg command."
-            )
-            return None
-        
-        # Final success message
-        final_size = os.path.getsize(output_path)
-        compression_ratio = (total_size / final_size) if final_size > 0 else 0
-        
-        # Get output file information
-        probe_cmd = [
-            'ffprobe', 
-            '-v', 'error', 
-            '-select_streams', 'v:0',
-            '-show_entries', 'stream=width,height,r_frame_rate,duration,bit_rate,codec_name',
-            '-of', 'json', 
-            output_path
-        ]
-        
-        probe_process = await asyncio.create_subprocess_exec(
-            *probe_cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
-        )
-        
-        stdout, stderr = await probe_process.communicate()
-        
-        output_width = output_height = output_bitrate = output_codec = "N/A"
-        
-        try:
-            if probe_process.returncode == 0:
-                probe_data = json.loads(stdout.decode())
-                stream_info = probe_data.get('streams', [{}])[0]
-                
-                output_width = stream_info.get('width', 'N/A')
-                output_height = stream_info.get('height', 'N/A')
-                output_bitrate = int(stream_info.get('bit_rate', 0)) / 1000  # Convert to kbps
-                output_codec = stream_info.get('codec_name', 'N/A')
-        except Exception as e:
-            logging.error(f"Error getting output file info: {str(e)}")
-        
+            error_lines = stderr.decode().splitlines()
+            filtered_errors = [line for line in error_lines if any(x in line.lower() for x in ['error', 'invalid', 'unable'])]
+            await status_msg.edit_text(f"❌ FFmpeg Failed\n\n{'\n'.join(filtered_errors[-10:])}\n\n<code>{ffmpeg_cmd}</code>")
+            return
+
+        final_size = os.path.getsize(output_path) if os.path.exists(output_path) else 0
+        compression_ratio = total_size / final_size if final_size else 0
         processing_time = time.time() - start_time
-        
+
         await status_msg.edit_text(
-            f"✅ FFmpeg Processing Complete!\n\n"
-            f"📊 Results:\n"
-            f"▫️ Original Size: {format_size(total_size)}\n"
-            f"▫️ Final Size: {format_size(final_size)}\n"
-            f"▫️ Compression Ratio: {compression_ratio:.2f}x\n"
-            f"▫️ Original Resolution: {width}x{height}\n"
-            f"▫️ Output Resolution: {output_width}x{output_height}\n"
-            f"▫️ Output Codec: {output_codec}\n"
-            f"▫️ Output Bitrate: {output_bitrate:.0f} kbps\n"
-            f"▫️ Processing Time: {format_time(processing_time)}\n\n"
-            f"<code>{ff_args}</code>"
+            f"✅ Done!\n\n"
+            f"▫️ Original: {format_size(total_size)}\n"
+            f"▫️ Final: {format_size(final_size)}\n"
+            f"▫️ Ratio: {compression_ratio:.2f}x\n"
+            f"▫️ Time: {format_time(processing_time)}\n\n"
+            f"<code>{ffmpeg_cmd}</code>"
         )
-        
+
         return output_path
     except Exception as e:
-        logging.error(f"FFmpeg processing error: {str(e)}", exc_info=True)
-        await status_msg.edit_text(f"❌ Error: {str(e)}")
-        return None
-
-async def send_large_message(bot, chat_id, text):
-    max_length = 4096
-    for i in range(0, len(text), max_length):
-        await bot.send_message(chat_id, text[i:i+max_length])
+        logging.error(f"FFmpeg processing failed: {e}", exc_info=True)
+        await status_msg.edit_text(f"❌ Error occurred:\n{str(e)}")
+        return
 
 # Main Bot Handlers
 def register_handlers(bot: Client):
