@@ -314,9 +314,9 @@ def register_handlers(bot: Client):
             await status_msg.edit_text("📤 Uploading processed file...")
             await m.reply_chat_action(enums.ChatAction.UPLOAD_DOCUMENT)
             await m.reply_document(
-                output_path,
-                caption="✅ Processing complete!"
+                output_path
             )
+            await status_msg.delete()
 
             # Show command if test mode is on
             if test_feature.get(m.chat.id, True):
