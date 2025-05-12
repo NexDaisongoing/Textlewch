@@ -50,6 +50,53 @@ async def web_server():
     web_app.add_routes(routes)
     return web_app
 
+@bot.on_message(filters.command("help"))
+async def help_command(client, message: Message):
+    await message.reply_text(
+        "📝 **How to use this bot:**\n\n"
+        "1. Send any video file\n"
+        "2. I'll show you the video info\n"
+        "3. Send the FFmpeg parameters you want to use\n"
+        "4. I'll process the video and send it back\n\n"
+        "Example FFmpeg parameters:\n"
+        "`-c:v libx264 -crf 23 -preset medium -c:a aac -b:a 128k`"
+    )
+
+@bot.on_message(filters.video | filters.document)
+async def process_video(client, message: Message):
+    try:
+        # Send initial status message
+        status_msg = await message.reply_text("⏳ Downloading file...")
+        
+        # Download the file
+        file_path = await message.download(file_name=f"{DOWNLOAD_DIR}/{message.from_user.id}_{message.id}")
+        
+        if not file_path:
+            return await status_msg.edit_text("❌ Failed to download file.")
+            
+        await status_msg.edit_text("🔍 Analyzing video...")
+        
+        # Process with our dedicated FFmpeg processor
+        output_path = await process_with_ffmpeg(bot, message, file_path, status_msg)
+        
+        if output_path and os.path.exists(output_path):
+            # Send the processed file
+            await message.reply_document(
+                document=output_path,
+                caption="✅ Here's your processed video!"
+            )
+            
+            # Clean up
+            try:
+                os.remove(file_path)
+                os.remove(output_path)
+            except Exception as e:
+                logging.error(f"Error cleaning up files: {e}")
+    
+    except Exception as e:
+        logging.error(f"Error processing video: {e}", exc_info=True)
+        await message.reply_text(f"❌ An error occurred: {str(e)}")
+
 @bot.on_message(filters.command(["start"]))
 async def account_login(bot: Client, m: Message):
     await m.reply_text(
