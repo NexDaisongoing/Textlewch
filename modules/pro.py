@@ -184,14 +184,14 @@ async def process_with_ffmpeg(bot, m: Message, input_path, status_msg):
                 stats_text = (
                     "🔄 Encoding Progress:\n\n"
                     f"{get_progress_bar(percent)} {percent:.1f}%\n"
-                    f"⏱️ Time: {format_time(progress_data['time'])} / {format_time(total_duration)}\n"
-                    f"🎞️ Frames: {progress_data['frame'] or 'Calculating...'} @ {fmt(progress_data['fps'])} FPS\n"
-                    f"📊 Quality: q={fmt(progress_data['q'])}\n"
-                    f"📦 Size: {format_size(output_size)} (Est. Final: {format_size(output_size / (progress_data['time']/total_duration)) if progress_data['time'] else 'Calculating...'})\n"
-                    f"🔄 Compression: {compression_ratio:.2f}x\n"
-                    f"📈 Bitrate: {fmt(progress_data['bitrate'])} kbps | ⚡ Speed: {fmt(progress_data['speed'])}x\n"
-                    f"⏳ ETA: {format_time(eta)} | ⌛ Elapsed: {format_time(elapsed)}\n"
-                    f"\n🖥️ CPU: {cpu}% | 🧠 RAM: {format_size(ram.used)}/{format_size(ram.total)}\n"
+                    f" Duration: {format_time(progress_data['time'])} / {format_time(total_duration)}\n"
+                    f" Frames: {progress_data['frame'] or 'Calculating...'} @ {fmt(progress_data['fps'])} FPS\n"
+                    f" Quality: q={fmt(progress_data['q'])}\n"
+                    f" Size: {format_size(output_size)} (Est. Final: {format_size(output_size / (progress_data['time']/total_duration)) if progress_data['time'] else 'Calculating...'})\n"
+                    f" Compression: {compression_ratio:.2f}x\n"
+                    f" Bitrate: {fmt(progress_data['bitrate'])} kbps | Speed: {fmt(progress_data['speed'])}x\n"
+                    f" ETA: {format_time(eta)} |  Elapsed: {format_time(elapsed)}\n"
+                    f"\n CPU: {cpu}% | RAM: {format_size(ram.used)}/{format_size(ram.total)}\n"
                     f"\n<code>{ffmpeg_cmd}</code>"
                 )
                 try:
