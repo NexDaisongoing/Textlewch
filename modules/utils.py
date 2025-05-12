@@ -96,3 +96,76 @@ async def progress_bar(current, total, reply, start):
             except FloodWait as e:
                 time.sleep(e.x)
 
+"""
+Utility functions for formatting and display in the FFmpeg processor.
+"""
+
+def format_size(size_bytes: int) -> str:
+    """
+    Format a size in bytes to a human-readable string.
+    
+    Args:
+        size_bytes: Size in bytes
+        
+    Returns:
+        Formatted string (e.g., "15.2 MB")
+    """
+    if size_bytes < 0:
+        return "0 B"
+        
+    # Define units and thresholds
+    units = ["B", "KB", "MB", "GB", "TB", "PB"]
+    size = float(size_bytes)
+    unit_index = 0
+    
+    # Scale to appropriate unit
+    while size >= 1024 and unit_index < len(units) - 1:
+        size /= 1024
+        unit_index += 1
+        
+    # Format with appropriate precision
+    if size < 10:
+        return f"{size:.2f} {units[unit_index]}"
+    elif size < 100:
+        return f"{size:.1f} {units[unit_index]}"
+    else:
+        return f"{int(size)} {units[unit_index]}"
+
+def format_time(seconds: float) -> str:
+    """
+    Format seconds to HH:MM:SS format.
+    
+    Args:
+        seconds: Time duration in seconds
+        
+    Returns:
+        Formatted time string
+    """
+    if seconds is None or seconds < 0:
+        return "00:00:00"
+        
+    seconds = int(seconds)
+    hours, remainder = divmod(seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    
+    return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+
+def get_progress_bar(percent: float, width: int = 20) -> str:
+    """
+    Generate an ASCII progress bar.
+    
+    Args:
+        percent: Progress percentage (0-100)
+        width: Width of the progress bar in characters
+        
+    Returns:
+        Progress bar string
+    """
+    percent = max(0, min(100, percent))  # Clamp to 0-100
+    filled_len = int(width * percent / 100)
+    
+    # Create the bar with appropriate characters
+    bar = '█' * filled_len + '░' * (width - filled_len)
+    
+    return f"[{bar}]"
+
