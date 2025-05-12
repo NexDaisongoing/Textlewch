@@ -90,7 +90,6 @@ async def download_with_progress(bot, chat_id, file_msg, file_path, status_msg):
 
 async def process_with_ffmpeg(bot, m: Message, input_path, status_msg):
     try:
-
         # Probe input file
         probe_cmd = [
             'ffprobe', '-v', 'error', '-select_streams', 'v:0',
@@ -106,6 +105,7 @@ async def process_with_ffmpeg(bot, m: Message, input_path, status_msg):
         stream = data.get("streams", [{}])[0]
         fmt = data.get("format", {})
 
+        # Handle potential missing values with defaults
         total_duration = float(stream.get("duration") or fmt.get("duration") or 0)
         fr = stream.get("r_frame_rate", "25/1")
         frame_rate = eval(fr) if '/' in fr else float(fr)
@@ -116,7 +116,7 @@ async def process_with_ffmpeg(bot, m: Message, input_path, status_msg):
             "📂 Input File Info:\n"
             f"▫️ Size: {format_size(total_size)}\n"
             f"▫️ Duration: {format_time(total_duration)}\n"
-            f"▫️ Resolution: {stream.get('width')}x{stream.get('height')}\n"
+            f"▫️ Resolution: {stream.get('width', 'N/A')}x{stream.get('height', 'N/A')}\n"
             f"▫️ Codec: {input_codec}\n\n"
             "⚙️ Send your FFmpeg command:"
         )
@@ -130,22 +130,32 @@ async def process_with_ffmpeg(bot, m: Message, input_path, status_msg):
         cmd = ['ffmpeg', '-hide_banner', '-loglevel', 'info', '-stats', '-y', '-i', input_path, *shlex.split(ffmpeg_cmd), output_path]
         proc = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
 
-        # Initialize progress data
+        # Initialize progress data with safe defaults
         progress_data = {
-            'frame': None, 'fps': None, 'time': 0, 'bitrate': None, 'speed': None,
-            'size_kb': 0, 'q': None, 'dup': 0, 'drop': 0
+            'frame': 0, 'fps': 0, 'time': 0, 'bitrate': 0, 'speed': 0,
+            'size_kb': 0, 'q': 0, 'dup': 0, 'drop': 0
         }
-        last_update_time = 0
         start_time = time.time()
+        
+        # Flag to track if the FFmpeg process is running
+        ffmpeg_running = asyncio.Event()
+        ffmpeg_running.set()  # Set to True initially
 
         # --- Task 1: Reading FFmpeg stderr ---
         async def read_ffmpeg_log():
             while True:
                 line = await proc.stderr.readline()
-                if not line:
+                if not line:  # EOF
+                    ffmpeg_running.clear()  # Signal that FFmpeg has stopped
                     break
 
                 text_line = line.decode(errors="ignore").strip()
+                
+                # Debug log every 100 lines to help diagnose early termination
+                if progress_data.get('debug_count', 0) % 100 == 0:
+                    logging.debug(f"FFmpeg output: {text_line}")
+                progress_data['debug_count'] = progress_data.get('debug_count', 0) + 1
+                
                 for key, pattern in {
                     'frame':   r"frame=\s*(\d+)",
                     'fps':     r"fps=\s*([\d\.]+)",
@@ -168,26 +178,48 @@ async def process_with_ffmpeg(bot, m: Message, input_path, status_msg):
 
         # --- Task 2: Periodic updater ---
         async def update_message_loop():
-            while not proc.returncode:
+            last_update_time = 0
+            while ffmpeg_running.is_set() or not proc.returncode:
                 now = time.time()
-                percent = (progress_data['time'] / total_duration) * 100 if total_duration else 0
-                eta = ((total_duration - progress_data['time']) / (progress_data['speed'] or 1)) if progress_data['speed'] else total_duration
-                output_size = progress_data['size_kb'] * 1024
-                compression_ratio = total_size / output_size if output_size else 0
+                
+                # Only update message every 2 seconds to avoid API rate limits
+                if now - last_update_time < 2:
+                    await asyncio.sleep(0.5)
+                    continue
+                    
+                last_update_time = now
+                
+                # Calculate stats, handling division by zero and missing values
+                percent = min(100, (progress_data['time'] / max(total_duration, 0.1)) * 100) if total_duration else 0
+                
+                # Handle speed=0 to avoid division by zero in ETA calculation
+                speed = max(progress_data['speed'], 0.01)
+                eta = (total_duration - progress_data['time']) / speed if progress_data['time'] < total_duration else 0
+                
+                # Handle zero size to avoid division by zero
+                output_size = max(progress_data['size_kb'] * 1024, 1)
+                compression_ratio = total_size / output_size if output_size else 1
+                
                 cpu = psutil.cpu_percent()
                 ram = psutil.virtual_memory()
                 elapsed = now - start_time
 
-                def fmt(val, fallback="Calculating..."):
+                def fmt(val, fallback="0.0"):
                     return f"{val:.1f}" if isinstance(val, (int, float)) else fallback
+
+                # Ensure we're showing something even if values are zero
+                estimated_final_size = "Calculating..."
+                if progress_data['time'] > 0 and total_duration > 0:
+                    ratio = total_duration / progress_data['time']
+                    estimated_final_size = format_size(output_size * ratio)
 
                 stats_text = (
                     "🔄 Encoding Progress:\n\n"
                     f"{get_progress_bar(percent)} {percent:.1f}%\n"
                     f" Duration: {format_time(progress_data['time'])} / {format_time(total_duration)}\n"
-                    f" Frames: {progress_data['frame'] or 'Calculating...'} @ {fmt(progress_data['fps'])} FPS\n"
+                    f" Frames: {progress_data['frame'] or '0'} @ {fmt(progress_data['fps'])} FPS\n"
                     f" Quality: q={fmt(progress_data['q'])}\n"
-                    f" Size: {format_size(output_size)} (Est. Final: {format_size(output_size / (progress_data['time']/total_duration)) if progress_data['time'] else 'Calculating...'})\n"
+                    f" Size: {format_size(output_size)} (Est. Final: {estimated_final_size})\n"
                     f" Compression: {compression_ratio:.2f}x\n"
                     f" Bitrate: {fmt(progress_data['bitrate'])} kbps | Speed: {fmt(progress_data['speed'])}x\n"
                     f" ETA: {format_time(eta)} |  Elapsed: {format_time(elapsed)}\n"
@@ -198,18 +230,42 @@ async def process_with_ffmpeg(bot, m: Message, input_path, status_msg):
                     await status_msg.edit_text(stats_text)
                 except MessageNotModified:
                     pass
-                await asyncio.sleep(2)
+                
+                # Check if process is still running
+                if proc.returncode is not None and not ffmpeg_running.is_set():
+                    break
+                    
+                await asyncio.sleep(0.5)
 
-        # Launch both tasks
+        # Perform periodic heartbeat checks on ffmpeg
+        async def monitor_ffmpeg():
+            while proc.returncode is None:
+                # Just check if the process is still running
+                if proc.returncode is not None:
+                    ffmpeg_running.clear()
+                    break
+                await asyncio.sleep(1)
+
+        # Launch all tasks
         await asyncio.gather(
             read_ffmpeg_log(),
-            update_message_loop()
+            update_message_loop(),
+            monitor_ffmpeg()
         )
 
-        await proc.wait()
+        # Wait for process to complete
+        return_code = await proc.wait()
+        
+        # Check if operation was successful
+        if return_code != 0 or not os.path.exists(output_path):
+            return await status_msg.edit_text(
+                f"❌ FFmpeg process failed with return code {return_code}\n\n"
+                f"Last command: <code>{ffmpeg_cmd}</code>"
+            )
+            
         final_size = os.path.getsize(output_path) if os.path.exists(output_path) else 0
         processing_time = time.time() - start_time
-        compression_ratio = total_size / final_size if final_size else 0
+        compression_ratio = total_size / max(final_size, 1)  # Avoid division by zero
 
         await status_msg.edit_text(
             f"✅ Done!\n\n"
@@ -223,7 +279,7 @@ async def process_with_ffmpeg(bot, m: Message, input_path, status_msg):
     except Exception as e:
         logging.error(f"FFmpeg processing failed: {e}", exc_info=True)
         await status_msg.edit_text(f"❌ Error occurred:\n{e}")
-        return
+        return None
 
 # Main Bot Handlers
 def register_handlers(bot: Client):
