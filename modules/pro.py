@@ -123,7 +123,6 @@ async def process_with_ffmpeg(bot, m: Message, input_path, status_msg):
 
         cmd_msg = await bot.listen(m.chat.id)
         ffmpeg_cmd = cmd_msg.text.strip()
-        await cmd_msg.delete()
 
         base_name = os.path.splitext(os.path.basename(input_path))[0]
         output_path = os.path.join(DOWNLOAD_DIR, f"{base_name}_processed.mkv")
@@ -131,75 +130,81 @@ async def process_with_ffmpeg(bot, m: Message, input_path, status_msg):
         cmd = ['ffmpeg', '-hide_banner', '-loglevel', 'info', '-stats', '-y', '-i', input_path, *shlex.split(ffmpeg_cmd), output_path]
         proc = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
 
+        # Initialize progress data
         progress_data = {
-            'frame': 'Calculating...', 'fps': 'Calculating...', 'time': 0, 'bitrate': 'Calculating...', 
-            'speed': 'Calculating...', 'size_kb': 0, 'q': 'Calculating...', 'dup': 0, 'drop': 0
+            'frame': None, 'fps': None, 'time': 0, 'bitrate': None, 'speed': None,
+            'size_kb': 0, 'q': None, 'dup': 0, 'drop': 0
         }
         last_update_time = 0
-        UPDATE_INTERVAL = 3
         start_time = time.time()
 
-        while True:
-            line = await proc.stderr.readline()
-            if not line:
-                break
+        # --- Task 1: Reading FFmpeg stderr ---
+        async def read_ffmpeg_log():
+            while True:
+                line = await proc.stderr.readline()
+                if not line:
+                    break
 
-            text_line = line.decode(errors="ignore").strip()
-            patterns = {
-                'frame':   r"frame=\s*(\d+)",
-                'fps':     r"fps=\s*([\d\.]+)",
-                'time':    r"time=\s*(\d+):(\d+):(\d+\.\d+)",
-                'bitrate': r"bitrate=\s*([\d\.]+)\s*kbits/s",
-                'speed':   r"speed=\s*([\d\.]+)x",
-                'size_kb': r"size=\s*(\d+)kB",
-                'q':       r"q=\s*([\d\.]+)",
-                'dup':     r"dup=\s*(\d+)",
-                'drop':    r"drop=\s*(\d+)"
-            }
+                text_line = line.decode(errors="ignore").strip()
+                for key, pattern in {
+                    'frame':   r"frame=\s*(\d+)",
+                    'fps':     r"fps=\s*([\d\.]+)",
+                    'time':    r"time=\s*(\d+):(\d+):(\d+\.\d+)",
+                    'bitrate': r"bitrate=\s*([\d\.]+)\s*kbits/s",
+                    'speed':   r"speed=\s*([\d\.]+)x",
+                    'size_kb': r"size=\s*(\d+)kB",
+                    'q':       r"q=\s*([\d\.]+)",
+                    'dup':     r"dup=\s*(\d+)",
+                    'drop':    r"drop=\s*(\d+)"
+                }.items():
+                    match = re.search(pattern, text_line)
+                    if match:
+                        if key == "time":
+                            h, m, s = map(float, match.groups())
+                            progress_data["time"] = int(h * 3600 + m * 60 + s)
+                        else:
+                            val = float(match.group(1)) if "." in match.group(1) else int(match.group(1))
+                            progress_data[key] = val
 
-            for key, pattern in patterns.items():
-                match = re.search(pattern, text_line)
-                if match:
-                    if key == 'time':
-                        h, m, s = map(float, match.groups())
-                        progress_data['time'] = int(h * 3600 + m * 60 + s)
-                    else:
-                        val = match.group(1)
-                        progress_data[key] = float(val) if '.' in val else int(val)
-
-            now = time.time()
-            if now - last_update_time >= UPDATE_INTERVAL:
-                last_update_time = now
-                elapsed = now - start_time
+        # --- Task 2: Periodic updater ---
+        async def update_message_loop():
+            while not proc.returncode:
+                now = time.time()
                 percent = (progress_data['time'] / total_duration) * 100 if total_duration else 0
-                eta = (total_duration - progress_data['time']) / (progress_data['speed'] if isinstance(progress_data['speed'], (float, int)) and progress_data['speed'] != 0 else 1)
+                eta = ((total_duration - progress_data['time']) / (progress_data['speed'] or 1)) if progress_data['speed'] else total_duration
                 output_size = progress_data['size_kb'] * 1024
                 compression_ratio = total_size / output_size if output_size else 0
                 cpu = psutil.cpu_percent()
                 ram = psutil.virtual_memory()
+                elapsed = now - start_time
 
-                def fmt(val):
-                    return val if isinstance(val, str) else f"{val:.2f}"
+                def fmt(val, fallback="Calculating..."):
+                    return f"{val:.1f}" if isinstance(val, (int, float)) else fallback
 
                 stats_text = (
                     "🔄 Encoding Progress:\n\n"
                     f"{get_progress_bar(percent)} {percent:.1f}%\n"
                     f"⏱️ Time: {format_time(progress_data['time'])} / {format_time(total_duration)}\n"
-                    f"🎞️ Frames: {fmt(progress_data['frame'])} @ {fmt(progress_data['fps'])} FPS\n"
+                    f"🎞️ Frames: {progress_data['frame'] or 'Calculating...'} @ {fmt(progress_data['fps'])} FPS\n"
                     f"📊 Quality: q={fmt(progress_data['q'])}\n"
                     f"📦 Size: {format_size(output_size)} (Est. Final: {format_size(output_size / (progress_data['time']/total_duration)) if progress_data['time'] else 'Calculating...'})\n"
                     f"🔄 Compression: {compression_ratio:.2f}x\n"
                     f"📈 Bitrate: {fmt(progress_data['bitrate'])} kbps | ⚡ Speed: {fmt(progress_data['speed'])}x\n"
                     f"⏳ ETA: {format_time(eta)} | ⌛ Elapsed: {format_time(elapsed)}\n"
+                    f"\n🖥️ CPU: {cpu}% | 🧠 RAM: {format_size(ram.used)}/{format_size(ram.total)}\n"
+                    f"\n<code>{ffmpeg_cmd}</code>"
                 )
-                if progress_data['dup'] or progress_data['drop']:
-                    stats_text += f"🔄 Dup: {progress_data['dup']} | 🗑️ Drop: {progress_data['drop']}\n"
-                stats_text += f"\n🖥️ CPU: {cpu}% | 🧠 RAM: {format_size(ram.used)}/{format_size(ram.total)}\n\n<code>{ffmpeg_cmd}</code>"
-
                 try:
                     await status_msg.edit_text(stats_text)
                 except MessageNotModified:
                     pass
+                await asyncio.sleep(2)
+
+        # Launch both tasks
+        await asyncio.gather(
+            read_ffmpeg_log(),
+            update_message_loop()
+        )
 
         await proc.wait()
         final_size = os.path.getsize(output_path) if os.path.exists(output_path) else 0
